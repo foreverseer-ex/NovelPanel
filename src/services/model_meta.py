@@ -8,7 +8,7 @@ from typing import Literal
 from PIL import Image
 from loguru import logger
 
-from schemas.model import ModelMeta
+from schemas.model_meta import ModelMeta
 from services.civitai import civitai_service
 from settings.path import checkpoint_meta_home, lora_meta_home
 from settings.sd_forge_setting import sd_forge_settings

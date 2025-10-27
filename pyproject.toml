@@ -9,6 +9,7 @@ authors = [
 ]
 dependencies = [
   "aiofiles>=25.1.0",
+  "fastapi-mcp>=0.4.0",
   "flet[all]==0.28.3",
   "fletmint>=0.1.6.2",
   "fletxr>=0.1.4b230",

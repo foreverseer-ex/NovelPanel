@@ -161,4 +161,5 @@ cython_debug/
 
 # Flet
 storage/
-.idea
+.idea/
+resources/

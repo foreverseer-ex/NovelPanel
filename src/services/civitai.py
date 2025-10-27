@@ -9,7 +9,7 @@ from typing import Optional, Dict, Any
 import httpx
 import aiofiles
 
-from schemas.model import Example, GenerateArg, ModelMeta
+from schemas.model_meta import Example, GenerateArg, ModelMeta
 from settings.civitai_setting import civitai_settings
 
 

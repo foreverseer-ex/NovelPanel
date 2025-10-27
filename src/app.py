@@ -65,10 +65,13 @@ class AppView(ft.Row):
 
 def main(page: ft.Page):
     """
-    主函数：注册主题与窗口标题，挂载 AppView。
+    主函数：注册主题、字体与窗口标题，挂载 AppView。
     """
-    page.title = "AI Storer"
-    page.theme = ft.Theme(color_scheme_seed=ft.Colors.BLUE)
+    page.title = "NovelPanel"
+    page.theme = ft.Theme(
+        color_scheme_seed=ft.Colors.BLUE,
+        font_family="Microsoft YaHei",  # 设置全局字体为微软雅黑（Windows 系统自带）
+    )
     page.add(AppView())
 
 

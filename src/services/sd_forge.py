@@ -58,7 +58,6 @@ class SdForgeService:
     def set_options(
             sd_model_checkpoint: str | None = None,
             sd_vae: str | None = None,
-
     ) -> None:
         """
         切换 SD 模型（/sdapi/v1/options）。

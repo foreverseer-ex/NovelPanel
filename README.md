@@ -11,7 +11,7 @@ NovelPanel：一键将小说锻造成漫画。输入任意小说文本，AI 智�
 - SD‑Forge API 客户端：列出模型、切换选项、调用 txt2img 常用参数生成。
 - Flet UI：桌面/网页双端 UI，带导航与响应式卡片网格。
 
-说明：端到端“小说→漫画”流水线与 MCP（grok、fastapi-mcp）集成在路线图中；当前代码聚焦模型浏览与 SD‑Forge 连接。
+**当前状态：** 已完成 MCP 架构设计和 API 定义，核心功能实现进行中。
 
 ## 技术栈
 
@@ -23,24 +23,47 @@ NovelPanel：一键将小说锻造成漫画。输入任意小说文本，AI 智�
 
 ## 项目结构
 
-```
+```text
 src/
-  main.py                # 应用入口（Flet）
+  main.py                # Flet UI 应用入口
+  
+  # UI 层（Flet）
   pages/
     app.py               # AppView：侧边导航 + 主内容区
     model_manage_page.py # 模型管理页
   components/
-    model_card/          # 模型卡片组件（UI）
-  services/
-    sd_forge.py          # SD‑Forge API（列表、切换、txt2img）
-    civitai.py           # Civitai API（元数据、示例图）
-    model_meta.py        # 本地元数据与示例图下载
+    model_card/          # 模型卡片组件
+  
+  # MCP 层（Model Context Protocol）- FastAPI 风格
+  routers/
+    session.py           # 会话管理：创建/更新/删除会话（/session）
+    file.py              # 文件管理：小说上传、漫画导出（/file）
+    reader.py            # 阅读器：按行读取小说，章节梗概（/reader）
+    actor.py             # 角色管理：角色设定、外貌、SD标签（/actor）
+    memory.py            # 记忆系统：世界观、用户偏好、上下文（/memory）
+    draw.py              # 绘图管理：提示词生成、图像生成、分镜组合（/draw）
+  
+  # 数据模型层
   schemas/
-    model.py             # Pydantic 模型（ModelMeta、Example、GenerateArg）
+    session.py           # 会话相关模型（包含小说元数据）
+    memory.py            # 记忆系统模型（MemoryEntry 键值对、ChapterSummary 章节摘要）
+    actor.py             # 角色相关模型
+    model_meta.py        # SD模型元数据
+  
+  # 服务层
+  services/
+    sd_forge.py          # SD‑Forge API 客户端
+    civitai.py           # Civitai API 客户端
+    model_meta.py        # 本地模型元数据管理
+  
+  # 配置与常量
   settings/
-    sd_forge_setting.py  # SD‑Forge 连接与本地模型路径
-    civitai_setting.py   # Civitai 基本配置
-    path.py              # 元数据缓存路径（见源码）
+    sd_forge_setting.py  # SD‑Forge 配置
+    civitai_setting.py   # Civitai 配置
+    path.py              # 路径配置
+  constants/
+    color.py             # UI 颜色常量
+    memory.py            # 记忆系统键名定义（novel_memory_description, user_memory_description）
 ```
 
 ## 环境要求
@@ -51,7 +74,7 @@ src/
 
 ## 安装与运行（仅支持 uv）
 
-```
+```bash
 uv run flet run              # 桌面模式
 uv run flet run --web        # Web 模式
 ```
@@ -72,25 +95,260 @@ uv run flet run --web        # Web 模式
 
 Windows 示例：
 
-```
+```powershell
 $env:SD_FORGE_SETTINGS__HOME = "C:\Users\<you>\sd-webui-forge"
 $env:SD_FORGE_SETTINGS__BASE_URL = "http://127.0.0.1:7860"
 $env:CIVITAI_SETTINGS__API_KEY = "<optional>"
 ```
 
-## 现有工作流
+## MCP 架构设计
 
-- 模型发现：从 SD‑Forge `models` 目录读取 `.safetensors`。
-- 元数据获取：若无本地元数据，按文件哈希访问 Civitai，缓存 `metadata.json` 与示例图。
-- 浏览：在响应式网格中展示模型卡片、示例图与生成参数。
-- 生成：`services/sd_forge.py` 提供 `create_text2image`，调用 `/sdapi/v1/txt2img`（prompt、negative、sampler、steps、CFG、seed、尺寸、styles、LoRA 标签）。
+NovelPanel 采用 **MCP (Model Context Protocol)** 架构，将小说转漫画的复杂流程模块化为6个核心路由器。
+
+**技术实现：** 所有路由器基于 **FastAPI** 框架，使用 `APIRouter` 定义标准 REST API：
+
+- 使用装饰器定义路由：`@router.post()`、`@router.get()`、`@router.put()`、`@router.delete()`
+- 异步函数：所有处理函数使用 `async def`
+- 类型注解：完整的请求/响应 Pydantic 模型
+- 自动文档：支持 OpenAPI/Swagger 文档生成
+
+### 路由器列表
+
+### 1. **Session Router** (`/session`) - 会话管理
+
+管理小说转漫画项目的生命周期。Session 模型集成了小说元数据（标题、作者、总行数等）。
+
+**API端点：**
+
+- `POST /session/create`: 创建新项目，初始化目录结构
+- `GET /session/{session_id}`: 获取项目详情、进度和小说元数据
+- `PUT /session/{session_id}/status`: 更新处理状态（analyzing→generating→completed）
+- `GET /session/`: 列出所有会话（支持分页和状态过滤）
+- `DELETE /session/{session_id}`: 删除会话及相关数据
+
+**数据模型：** Session 包含小说元数据字段（`author`, `total_lines`），章节信息通过 Reader Router 管理。
+
+**应用场景：** 用户开始新的小说转换任务时，系统自动创建会话，解析小说后更新元数据字段。
+
+### 2. **File Router** (`/file`) - 文件管理
+
+简化设计：只处理小说文件和生成图像的读写。
+
+**API端点：**
+
+- `PUT /file/novel`: 上传/保存小说文件（TXT）
+- `GET /file/novel`: 获取小说文件
+- `PUT /file/image`: 保存生成的图像（参数 line 指定行号）
+- `GET /file/image`: 获取生成的图像（参数 line 指定行号）
+
+**应用场景：** 
+- 上传小说文本，自动检测编码并保存到会话目录
+- 按行号存储和读取生成的图像，如 `storage/sessions/{session_id}/images/{line}.png`
+
+### 3. **Reader Router** (`/reader`) - 阅读器
+
+按行解析小说，每行对应一个段落和一张图片。管理章节结构和梗概。
+
+**API端点：**
+
+- `POST /reader/parse`: 解析 TXT 文件，按行分割并识别章节，更新 Session 元数据
+- `GET /reader/line/{line_index}`: 读取第 n 行的内容（返回字符串）
+- `GET /reader/line/{line_index}/chapter`: 获取第 n 行对应的章节索引
+- `GET /reader/chapters`: 获取所有章节摘要列表
+- `GET /reader/chapter/{chapter_index}`: 获取章节详情
+- `GET /reader/chapter/{chapter_index}/summary`: 获取章节梗概
+- `PUT /reader/chapter/{chapter_index}/summary`: 设置章节梗概（用于 AI 上下文）
+
+**数据模型：**
+
+- **ChapterSummary**: 章节索引、标题、梗概、起止行号
+- 行内容直接返回字符串，无需额外模型
+
+**应用场景：** 逐行读取小说，为每行生成一张图片，章节梗概提供上下文。
+
+### 4. **Actor Router** (`/actor`) - 角色管理
+
+维护角色库，保证图像中角色外貌一致性。
+
+**API端点：**
+
+- `POST /actor/create`: 创建角色
+- `GET /actor/{character_id}`: 获取角色信息
+- `GET /actor/`: 列出所有角色
+- `PUT /actor/{character_id}`: 更新角色信息
+- `POST /actor/extract`: AI 从小说提取角色及外貌描述
+- `POST /actor/{character_id}/tags`: 将外貌转换为 SD 提示词标签
+- `PUT /actor/{character_id}/appearance`: 更新外貌，自动重新生成标签
+- `GET /actor/scene`: 识别段落中出现的角色
+- `DELETE /actor/{character_id}`: 删除角色
+
+**应用场景：** 确保主角在100页漫画中外貌一致，避免"每一页都像不同人"。
+
+### 5. **Memory Router** (`/memory`) - 记忆系统
+
+存储世界观、用户偏好等长期上下文。
+
+**设计原则：**
+- 简化设计：移除了 type、source、importance、metadata 等复杂字段
+- 键值对存储：所有记忆使用 `MemoryEntry` 键值对存储（仅保留 key、value、description）
+- 纯文本值：所有 value 统一使用纯文本字符串（列表类型用逗号分隔）
+- 预定义键：常用键定义在 `constants.memory` 中（`novel_memory_description`、`user_memory_description`）
+- 章节信息：通过 `ChapterSummary` 模型单独处理（也在 memory.py 中）
+
+**API端点：**
+
+- `POST /memory/create`: 创建记忆条目（key-value 对）
+- `GET /memory/{memory_id}`: 获取记忆条目
+- `GET /memory/query`: 检索相关记忆（重要情节、用户反馈）
+- `PUT /memory/{memory_id}`: 更新记忆
+- `DELETE /memory/{memory_id}`: 删除记忆
+- `GET /memory/world-setting/{session_id}`: 获取世界观设定（聚合视图）
+- `PUT /memory/world-setting/{session_id}`: 批量更新世界观设定
+- `POST /memory/world-setting/{session_id}/extract`: AI 提取世界观（时代、地点、魔法体系）
+- `GET /memory/preference/{session_id}`: 获取用户偏好（聚合视图）
+- `PUT /memory/preference/{session_id}`: 批量更新用户偏好
+- `GET /memory/session/{session_id}`: 获取完整上下文（供 AI 使用）
+- `POST /memory/session/{session_id}/import`: 导入记忆数据
+
+**数据示例：**
+```python
+# 存储世界观（使用中文键名）
+{
+    "作品类型": "修仙",
+    "主题": "成长与复仇",
+    "背景设定": "古代修仙世界，以五行灵力为核心的修炼体系",
+    "主要地点": "云海山门, 天元城, 魔兽森林",
+    "故事梗概": "少年李云从凡人逐步修炼成仙的历程"
+}
+
+# 存储用户偏好（使用中文键名）
+{
+    "艺术风格": "anime",
+    "避免的标签": "nsfw, gore, horror",
+    "喜欢的标签": "masterpiece, best quality, detailed",
+    "补充说明": "希望画面色彩鲜艳，注重人物表情刻画"
+}
+```
+
+**应用场景：** AI 生成提示词时自动应用世界观风格，记住用户不喜欢的标签。所有配置以纯文本形式存储，便于查看和修改。
+
+### 6. **Draw Router** (`/draw`) - 绘图管理
+
+简化设计：直接代理 SD-Forge API，所有接口添加 session_id 参数。
+
+**API端点：**
+
+**SD-Forge API 代理：**
+- `GET /draw/loras`: 获取 LoRA 模型列表
+- `GET /draw/sd-models`: 获取 SD 模型列表
+- `GET /draw/options`: 获取 SD 选项配置
+- `POST /draw/options`: 设置 SD 选项（切换模型）
+
+**图像生成：**
+- `POST /draw/txt2img`: 文生图（参数：session_id, batch_id, prompt, negative_prompt 等）
+- `GET /draw/image`: 获取生成的图像（参数：session_id, batch_id, index）
+
+**应用场景：** 
+- 调用 SD-Forge 生成图像，按 batch_id 组织
+- 图像保存到 `storage/sessions/{session_id}/batches/{batch_id}/{index}.png`
+- 每个 batch_id 可以包含多张图像（batch_size 参数控制）
+
+## 工作流程示例
+
+```text
+1. 用户上传小说《修仙小说.txt》
+   └─> create_session() → session_id: "abc123"
+   └─> upload_novel() → 触发 parse_novel()
+
+2. 系统解析小说
+   └─> parse_novel() → 按行分割，识别50章，共500行，更新 Session
+   └─> get_session() → session.total_lines: 500, status.total_chapters: 50
+   └─> get_chapters() → 获取所有章节摘要
+   └─> extract_characters() → AI提取主角"李云"等5个角色
+   └─> extract_world_setting() → AI识别世界观：
+       {
+         "作品类型": "修仙",
+         "主题": "成长与复仇",
+         "背景设定": "古代修仙世界，以五行灵力为核心的修炼体系",
+         "主要地点": "云海山门, 天元城, 魔兽森林"
+       }
+   └─> put_chapter_summary(ch=0) → 存储"第一章：初入山门"的梗概
+
+3. 逐行生成图片（每行 = 一张图）
+   for line_index in range(500):
+     a) get_line(line_index=0) → "李云站在山巅，俯瞰云海。"（字符串）
+     b) get_line_chapter_index(line_index=0) → chapter_index: 0
+     c) get_chapter_summary(ch=0) → "李云初入修仙门派..."（提供上下文）
+     d) get_characters_in_scene() → ["李云"]
+     e) AI生成提示词:
+        positive: "1boy, long hair, blue robe, standing on mountain peak, ..."
+        negative: "nsfw, gore"
+        loras: {"cultivator_style": 0.8}
+     f) txt2img(session_id="abc123", batch_id="line_0", prompt=...) → 生成图像
+     g) get_image(session_id="abc123", batch_id="line_0", index=0) → 获取图像
+
+4. 组合与导出
+   └─> 收集所有行的图像，按顺序组合成漫画
+```
+
+## 现有功能
+
+### ✅ 已实现
+
+- 模型管理：扫描本地 SD‑Forge 模型，展示带示例图的卡片
+- Civitai 集成：自动获取模型元数据与示例图
+- SD‑Forge API：调用 txt2img 生成图像
+- Flet UI：响应式模型浏览界面
+
+### 🚧 开发中（MCP 实现）
+
+- 会话管理与文件处理
+- 小说解析与阅读器
+- 角色库与一致性管理
+- AI 提示词生成
+- 分镜组合与导出
 
 ## 路线图
 
-- 小说→漫画：基于大模型抽取人物/场景/情节，逐段生成 Prompt，画面挑选与版面编排。
-- MCP 集成：接入 grok 与 fastapi-mcp，作为 NLU、提示规划与迭代工具。
-- 多引擎渲染：扩展 InvokeAI，支持无缝切换。
-- UI 流程：小说导入、章节/段落迭代、预览与选择、拼版与导出（CBZ/PDF）。
+### Phase 1: MCP 核心实现（进行中）
+
+- [x] 完成 MCP 架构设计
+- [x] 定义所有 Router 接口和 Schema
+- [ ] 实现 Session/File Router
+- [ ] 实现 Reader Router（小说解析）
+- [ ] 实现 Actor Router（角色提取）
+- [ ] 实现 Memory Router
+- [ ] 实现 Draw Router（提示词生成）
+
+### Phase 2: AI 集成
+
+- [ ] 接入 Grok/Claude 作为提示词规划引擎
+- [ ] 实现角色外貌→SD标签的转换
+- [ ] 实现场景描述→提示词的生成
+- [ ] 优化提示词质量（A/B测试）
+
+### Phase 3: UI 完善
+
+- [ ] 会话管理界面
+- [ ] 小说章节目录树
+- [ ] 角色库编辑器
+- [ ] 图像选择与评分界面
+- [ ] 分镜拖拽排序
+- [ ] 导出进度与预览
+
+### Phase 4: 多引擎支持
+
+- [ ] InvokeAI 集成
+- [ ] ComfyUI 集成
+- [ ] 引擎无缝切换
+- [ ] 性能对比工具
+
+### Phase 5: 高级功能
+
+- [ ] ControlNet/IPAdapter 支持（参考图一致性）
+- [ ] 批量生成优化
+- [ ] 云端渲染支持
+- [ ] 模板库（风格预设）
 
 ## 故障排查
 
@@ -100,8 +358,54 @@ $env:CIVITAI_SETTINGS__API_KEY = "<optional>"
 
 ## 开发说明
 
-- 入口：`src/main.py` 绑定 `pages/app.py` 的 `AppView`。
-- 首次运行可能较慢：`ModelMetaService.flush*` 会下载元数据与示例图。
+### 架构分层
+
+1. **UI 层 (Flet)**: 负责用户交互和展示
+2. **MCP 层 (Routers)**: 业务逻辑和流程编排，基于 FastAPI
+3. **Service 层**: 与外部服务交互（SD-Forge、Civitai）
+4. **Schema 层**: 数据模型定义（Pydantic）
+
+### 开发规范
+
+- **路由定义**：使用 FastAPI 的 `APIRouter`，每个路由文件创建独立的 router 实例
+
+  ```python
+  router = APIRouter(prefix="/session", tags=["会话管理"])
+  
+  @router.post("/create", response_model=Session)
+  async def create_session(...) -> Session:
+      pass
+  ```
+
+- **异步函数**：所有路由处理函数使用 `async def` 定义
+- **类型注解**：完整的参数和返回值类型注解，使用 Pydantic 模型
+- **参数验证**：路径参数直接定义，查询参数使用 `Query()` 添加验证和描述
+- **Schema 设计**：仅定义数据存储模型，不创建 `*Create`、`*Update` 等请求模型
+- **Session ID**：作为所有操作的上下文标识，通常作为第一个参数
+- **错误处理**：使用 FastAPI 的 HTTPException 和 Pydantic ValidationError
+
+### 测试运行
+
+```bash
+# 当前可运行：模型管理UI
+uv run flet run
+
+# MCP 实现后：完整流程
+python -m src.routers.session  # 测试会话管理
+```
+
+### 添加新功能
+
+1. 在 `schemas/` 定义数据模型
+2. 在 `routers/` 定义业务接口
+3. 在 `services/` 实现具体逻辑
+4. 在 UI 层调用 Router 接口
+
+### 注意事项
+
+- 首次运行较慢：`ModelMetaService.flush*` 会下载元数据与示例图
+- MCP Router 需要配置 LLM API（Grok/Claude）才能使用 AI 功能
+- 图像生成需要 SD-Forge 运行在 `http://127.0.0.1:7860`
 
 ## 许可
 
