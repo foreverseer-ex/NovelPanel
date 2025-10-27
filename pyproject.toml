@@ -11,8 +11,6 @@ dependencies = [
   "aiofiles>=25.1.0",
   "fastapi-mcp>=0.4.0",
   "flet[all]==0.28.3",
-  "fletmint>=0.1.6.2",
-  "fletxr>=0.1.4b230",
   "loguru>=0.7.3",
   "pillow>=11.3.0",
   "pydantic-settings>=2.11.0",
@@ -42,9 +40,6 @@ path = "src"
 dev-dependencies = [
     "flet[all]==0.28.3",
 ]
-
-[tool.uv.sources]
-fletxr = { git = "https://github.com/AllDotPy/FletX.git" }
 
 [tool.poetry]
 package-mode = false
