@@ -35,6 +35,12 @@ class CivitaiService:
 
     @staticmethod
     def _sha256(file_path: Path, buffer_size: int = 65536) -> str:
+        """以流式方式计算文件的 SHA-256。
+
+        :param file_path: 文件路径
+        :param buffer_size: 读取块大小
+        :return: 十六进制摘要字符串
+        """
         h = hashlib.sha256()
         with file_path.open("rb") as f:
             for chunk in iter(lambda: f.read(buffer_size), b""):

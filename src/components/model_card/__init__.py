@@ -1,3 +1,9 @@
+"""
+模型卡片 UI 组件。
+
+为给定模型提供预览图与基础信息徽章的卡片展示；
+支持打开“示例图片”与“模型详情”对话框。
+"""
 import base64
 import io
 
@@ -10,6 +16,7 @@ from .model_detail_dialog import build_model_detail_dialog
 
 
 class ModelCard(ft.Column):
+    """模型的可视化卡片，展示关键信息。"""
     def __init__(self, model_meta: ModelMeta):
         super().__init__()
         self.model_meta = model_meta
@@ -33,11 +40,13 @@ class ModelCard(ft.Column):
 
     @staticmethod
     def _pil_to_base64(img):
+        """将 PIL Image 编码为 base64 PNG 字符串。"""
         buf = io.BytesIO()
         img.save(buf, format="PNG")
         return base64.b64encode(buf.getvalue()).decode("utf-8")
 
     def _build_image(self):
+        """构建预览图控件；可点击打开示例图片对话框。"""
         if self.preview_image is None:
             return ft.Container(
                 width=260,
@@ -59,6 +68,7 @@ class ModelCard(ft.Column):
         )
 
     def _build_info(self):
+        """构建标题与徽章，展示模型版本与基础类型。"""
         title = ft.Text(self.model_meta.version_name, size=16, weight=ft.FontWeight.BOLD)
         badges = ft.Row(
             controls=[
@@ -70,6 +80,7 @@ class ModelCard(ft.Column):
         return ft.Column(controls=[title, badges], spacing=4)
 
     def _open_detail_dialog(self, e: ft.ControlEvent | None = None):
+        """打开展示模型详细元数据的对话框。"""
         dlg = build_model_detail_dialog(self.model_meta)
         page = e.page if e else self.page
         page.dialog = dlg
@@ -77,6 +88,7 @@ class ModelCard(ft.Column):
         page.update()
 
     def _open_examples_dialog(self):
+        """打开列出模型示例图片的对话框。"""
         dlg = build_example_image_dialog(self.model_meta)
         self.page.dialog = dlg
         self.page.dialog.open = True

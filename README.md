@@ -19,7 +19,7 @@ NovelPanel：一键将小说锻造成漫画。输入任意小说文本，AI 智�
 - 服务：SD‑Forge WebUI API、Civitai API
 - 配置：pydantic-settings
 - 图像：Pillow
-- 构建/运行：uv 或 Poetry
+- 构建/运行：uv（目前仅支持 uv 工作流）
 
 ## 项目结构
 
@@ -49,21 +49,11 @@ src/
 - 本地或远程运行的 SD‑Forge / sd-webui（用于生成）
 - 可访问互联网（用于 Civitai 元数据与示例图）
 
-## 安装与运行
-
-使用 uv：
+## 安装与运行（仅支持 uv）
 
 ```
 uv run flet run              # 桌面模式
 uv run flet run --web        # Web 模式
-```
-
-使用 Poetry：
-
-```
-poetry install
-poetry run flet run          # 桌面模式
-poetry run flet run --web    # Web 模式
 ```
 
 ## 配置

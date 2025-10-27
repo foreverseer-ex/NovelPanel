@@ -1,3 +1,9 @@
+"""
+模型示例图片对话框。
+
+以网格形式展示已缓存的示例图，点击单项可查看对应生成参数；
+图片与参数均由 ModelMetaService 的本地缓存加载。
+"""
 import base64
 import io
 
@@ -6,6 +12,11 @@ from schemas.model import ModelMeta
 from services.model_meta import model_meta_service
 
 def build_example_image_dialog(meta: ModelMeta) -> ft.AlertDialog:
+    """构建示例图片与生成参数的弹窗。
+
+    :param meta: 含示例条目的模型元数据
+    :return: 配置好的 Flet AlertDialog
+    """
     title_text = ft.Text("Example Images")
     content_container = ft.Container(width=600)
 

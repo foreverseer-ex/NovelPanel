@@ -19,7 +19,7 @@ Note: The end-to-end novel-to-comic pipeline and MCP (grok, fastapi-mcp) integra
 - Services: SD‑Forge WebUI API, Civitai API
 - Config: pydantic-settings
 - Images: Pillow
-- Build/Run: uv or Poetry
+- Build/Run: uv
 
 ## Project Structure
 
@@ -51,19 +51,11 @@ src/
 
 ## Installation
 
-Using uv:
+uv is the only supported workflow.
 
 ```
 uv run flet run              # Desktop
 uv run flet run --web        # Web
-```
-
-Using Poetry:
-
-```
-poetry install
-poetry run flet run          # Desktop
-poetry run flet run --web    # Web
 ```
 
 ## Configuration

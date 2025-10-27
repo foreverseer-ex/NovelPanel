@@ -1,3 +1,8 @@
+"""应用内使用的 Pydantic 数据模型。
+
+包含生成参数（GenerateArg）、示例条目（Example）以及整合的模型元数据
+（ModelMeta，通常由 Civitai 获取并在本地缓存）。
+"""
 from pathlib import Path
 from typing import Literal
 import httpx
@@ -6,6 +11,7 @@ from pydantic import BaseModel
 
 
 class GenerateArg(BaseModel):
+    """示例图片的 Stable Diffusion 生成参数。"""
     model: str
     prompt: str
     negative_prompt: str = ""
@@ -19,6 +25,7 @@ class GenerateArg(BaseModel):
 
 
 class Example(BaseModel):
+    """单个示例图片引用及其对应生成参数。"""
     url: str | None = None
     args: GenerateArg
 

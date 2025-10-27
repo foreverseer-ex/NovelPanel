@@ -8,11 +8,10 @@ from settings.sd_forge_setting import sd_forge_settings
 
 
 class SdForgeService:
-    """
-    SD Forge Service
+    """SD‑Forge（Stable Diffusion WebUI）HTTP API 客户端封装。
 
-    - base_url: sd-forge/sd-webui 服务地址，默认 http://127.0.0.1:7860
-    - 提供模型拉取、模型切换、txt2img 能力。
+    - base_url：sd-forge/sd-webui 服务地址，默认 http://127.0.0.1:7860
+    - 功能：获取模型列表、读取/设置 options、调用 txt2img 生成。
     """
 
     @staticmethod

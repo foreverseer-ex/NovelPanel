@@ -17,6 +17,10 @@ from settings.sd_forge_setting import sd_forge_settings
 class ModelMetaService:
     """
     模型元数据管理器。
+
+    - 负责扫描本地 SD‑Forge 模型目录并维护内存列表（Checkpoint/LoRA/VAE）。
+    - 若缺少本地元数据，则通过 Civitai 获取并缓存 `metadata.json` 与示例图。
+    - 提供读取示例图片与批量下载示例图的能力。
     """
 
     def __init__(self):
@@ -96,6 +100,7 @@ class ModelMetaService:
     def flush(self):
         """
         刷新所有模型元数据。
+        依次刷新 Checkpoint、LoRA、VAE 列表。
         """
         self.flush_checkpoint_meta()
         self.flush_lora_meta()
@@ -104,6 +109,7 @@ class ModelMetaService:
     def flush_lora_meta(self):
         """
         刷新Lora模型元数据。
+        遍历 Lora 目录，若无本地缓存则从 Civitai 拉取并保存。
         """
         for file in sd_forge_settings.lora_home.glob('*.safetensors'):
             model_meta = self.load_meta(file.stem, 'LORA')
@@ -140,6 +146,7 @@ class ModelMetaService:
     def flush_checkpoint_meta(self):
         """
         刷新Stable-diffusion模型元数据。
+        遍历 Checkpoint 目录，若无本地缓存则从 Civitai 拉取并保存。
         """
 
         for file in sd_forge_settings.checkpoint_home.glob('*.safetensors'):
@@ -157,6 +164,7 @@ class ModelMetaService:
 
         """
         刷新VAE模型元数据。
+        预留：可在此扩展从目录读取与元数据维护。
         """
         pass
 

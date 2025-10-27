@@ -1,12 +1,17 @@
 
 """
-Model Detail Dialog
+模型详情对话框。
 """
 import flet as ft
 
 from schemas.model import ModelMeta
 
 def build_model_detail_dialog(meta: ModelMeta) -> ft.AlertDialog:
+    """构建一个弹窗，列出模型的关键元数据字段。
+
+    :param meta: 已整合好的模型元数据
+    :return: 配置完成的 Flet AlertDialog
+    """
     fields = [
         ("filename", meta.filename),
         ("name", meta.name),
