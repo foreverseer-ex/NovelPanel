@@ -7,6 +7,10 @@ from pydantic_settings import BaseSettings
 
 
 class SdForgeSettings(BaseSettings):
+    """SD Forge (Stable Diffusion WebUI) 配置类。
+
+    配置 SD Forge 服务的地址、本地目录和超时设置。
+    """
     base_url: str = "http://127.0.0.1:7860"
     home: str = r"C:\Users\zxb\Links\sd-webui-forge-aki-v1.0"
     timeout: float = 30.0

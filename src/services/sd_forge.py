@@ -1,8 +1,9 @@
 """
 sd-forge 服务
 """
-import httpx
 from typing import Optional, Dict, Any
+
+import httpx
 
 from settings.sd_forge_setting import sd_forge_settings
 
@@ -67,7 +68,7 @@ class SdForgeService:
         :return: None
         """
         url = f"{sd_forge_settings.base_url}/sdapi/v1/options"
-        payload = dict()
+        payload = {}
         if sd_model_checkpoint:
             payload["sd_model_checkpoint"] = sd_model_checkpoint
         if sd_vae:
@@ -77,6 +78,7 @@ class SdForgeService:
             resp.raise_for_status()
 
     @classmethod
+    # pylint: disable=too-many-arguments,too-many-positional-arguments,too-many-locals
     def create_text2image(
             cls,
             prompt: str,

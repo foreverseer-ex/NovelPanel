@@ -32,7 +32,8 @@ def build_example_image_dialog(meta: ModelMeta) -> ft.AlertDialog:
             tiles = []
             try:
                 images = model_meta_service.load_example_images(meta)
-            except Exception:
+            except (FileNotFoundError, IOError):
+                # 如果图片文件不存在或无法读取，使用空列表
                 images = []
             for idx, img in enumerate(images):
                 b64 = pil_to_base64(img)
@@ -46,7 +47,10 @@ def build_example_image_dialog(meta: ModelMeta) -> ft.AlertDialog:
                     )
                 )
             grid = ft.ResponsiveRow(
-                controls=[ft.Container(content=t, col={'xs': 6, 'sm': 3, 'md': 2, 'lg': 2}) for t in tiles],
+                controls=[
+                    ft.Container(content=t, col={'xs': 6, 'sm': 3, 'md': 2, 'lg': 2})
+                    for t in tiles
+                ],
                 run_spacing=10,
                 spacing=10,
             )
@@ -55,8 +59,13 @@ def build_example_image_dialog(meta: ModelMeta) -> ft.AlertDialog:
             idx = state["selected_index"]
             if 0 <= idx < len(meta.examples):
                 ex = meta.examples[idx]
-                items = [ft.Text(f"{k}: {v}") for k, v in ex.args.model_dump().items()]
-                content_container.content = ft.Column(controls=items, tight=True, spacing=6, width=600)
+                items = [
+                    ft.Text(f"{k}: {v}")
+                    for k, v in ex.args.model_dump().items()
+                ]
+                content_container.content = ft.Column(
+                    controls=items, tight=True, spacing=6, width=600
+                )
             else:
                 content_container.content = ft.Text("No example selected")
 

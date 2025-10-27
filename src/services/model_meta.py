@@ -44,7 +44,7 @@ class ModelMetaService:
                 home = checkpoint_meta_home
             case 'LORA':
                 home = lora_meta_home
-        model_version_json = home / Path(filename).stem / f'metadata.json'
+        model_version_json = home / Path(filename).stem / 'metadata.json'
         if not model_version_json.exists():
             return None
         meta = ModelMeta.model_validate_json(model_version_json.read_text(encoding='utf-8'))
@@ -63,7 +63,7 @@ class ModelMetaService:
                 home = checkpoint_meta_home
             case 'LORA':
                 home = lora_meta_home
-        model_version_json = home / Path(meta.filename).stem / f'metadata.json'
+        model_version_json = home / Path(meta.filename).stem / 'metadata.json'
         model_version_json.parent.mkdir(parents=True, exist_ok=True)
         model_version_json.write_text(meta.model_dump_json(indent=2), encoding='utf-8')
 
@@ -161,12 +161,12 @@ class ModelMetaService:
             self.sd_list.append(model_meta)
 
     def flush_vae(self):
-
         """
         刷新VAE模型元数据。
         预留：可在此扩展从目录读取与元数据维护。
         """
-        pass
+        # 预留功能，暂未实现
+        return
 
 
 model_meta_service = ModelMetaService()

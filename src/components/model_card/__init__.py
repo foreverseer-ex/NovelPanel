@@ -29,7 +29,10 @@ class ModelCard(ft.Column):
                     content=ft.Column(
                         controls=[
                             img_control,
-                            ft.Container(content=info_control, on_click=lambda e: self._open_detail_dialog(e)),
+                            ft.Container(
+                                content=info_control,
+                                on_click=self._open_detail_dialog
+                            ),
                         ],
                         spacing=8,
                     ),

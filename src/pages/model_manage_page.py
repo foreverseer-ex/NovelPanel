@@ -20,9 +20,15 @@ class ModelManagePage(ft.Column):
             + model_meta_service.lora_list
             + model_meta_service.vae_list
         )
-        cards = [ft.Container(content=ModelCard(meta), padding=6) for meta in models]
+        cards = [
+            ft.Container(content=ModelCard(meta), padding=6)
+            for meta in models
+        ]
         grid = ft.ResponsiveRow(
-            controls=[ft.Container(content=c, col={"xs": 12, "sm": 6, "md": 4, "lg": 3}) for c in cards],
+            controls=[
+                ft.Container(content=c, col={"xs": 12, "sm": 6, "md": 4, "lg": 3})
+                for c in cards
+            ],
             run_spacing=8,
             spacing=8,
         )
