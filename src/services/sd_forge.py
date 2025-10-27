@@ -119,7 +119,7 @@ class SdForgeService:
         if loras:
             tags = []
             for name, weight in loras.items():
-                # Use sd-webui lora tag syntax
+                # 使用 sd-webui lora 标签语法
                 tags.append(f"<lora:{name}:{weight}>")
             if tags:
                 final_prompt = " ".join(tags) + " " + (prompt or "")

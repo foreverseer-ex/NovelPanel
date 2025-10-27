@@ -24,6 +24,10 @@ class ModelMetaService:
     """
 
     def __init__(self):
+        """初始化模型元数据管理器。
+        
+        初始化三个模型列表（LoRA、Checkpoint、VAE）并执行首次刷新。
+        """
         self.lora_list: list[ModelMeta] = []
         self.sd_list: list[ModelMeta] = []
         self.vae_list: list[ModelMeta] = []
@@ -82,7 +86,7 @@ class ModelMetaService:
                 home = checkpoint_meta_home / Path(meta.filename).stem
             case 'LORA':
                 home = lora_meta_home / Path(meta.filename).stem
-        # noinspection PyTypeHints
+        # 忽略类型提示检查
         file = meta.examples[index].filename
         return Image.open(home / file)
 

@@ -13,8 +13,12 @@ from services.model_meta import model_meta_service
 class ModelManagePage(ft.Column):
     """包含标题与响应式模型卡片网格的页面。"""
     def __init__(self):
+        """初始化模型管理页面。
+        
+        加载所有模型（Checkpoint、LoRA、VAE）并以响应式网格展示。
+        """
         super().__init__()
-        # prepare a combined list for now; can be filtered later
+        # 准备合并列表；后续可添加过滤功能
         models = (
             model_meta_service.sd_list
             + model_meta_service.lora_list

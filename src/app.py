@@ -2,7 +2,7 @@
 应用主视图，包含左侧导航栏（NavigationRail）与右侧主内容区。
 """
 import flet as ft
-from .model_manage_page import ModelManagePage
+from pages.model_manage_page import ModelManagePage
 
 class AppView(ft.Row):
     """应用主视图：左侧 NavigationRail + 右侧可切换的主内容区。
@@ -10,8 +10,12 @@ class AppView(ft.Row):
     目前仅包含一个目的地：模型管理页面。
     """
     def __init__(self):
+        """初始化应用主视图。
+        
+        设置当前页面索引、展开状态和主内容区容器。
+        """
         super().__init__()
-        self.current_page = 0  # 0: ModelManage
+        self.current_page = 0  # 0: 模型管理
         self.expand = True
         self.main_area = ft.Container(expand=True, padding=10)
 
@@ -36,9 +40,9 @@ class AppView(ft.Row):
 
     def did_mount(self):
         """
-        Build NavigationRail and initial content
+        构建导航栏和初始内容
         """
-        # Build NavigationRail and initial content
+        # 构建导航栏和初始内容
         rail = ft.NavigationRail(
             selected_index=self.current_page,
             label_type=ft.NavigationRailLabelType.ALL,
@@ -49,7 +53,7 @@ class AppView(ft.Row):
                 ft.NavigationRailDestination(
                     icon=ft.Icons.LIST_ALT_OUTLINED,
                     selected_icon=ft.Icons.LIST_ALT,
-                    label="Models",
+                    label="模型",
                 ),
             ],
             on_change=lambda e: self._goto(e.control.selected_index),
@@ -57,3 +61,16 @@ class AppView(ft.Row):
         self._render_content()
         self.controls = [rail, ft.VerticalDivider(width=1), self.main_area]
         self.update()
+
+
+def main(page: ft.Page):
+    """
+    主函数：注册主题与窗口标题，挂载 AppView。
+    """
+    page.title = "AI Storer"
+    page.theme = ft.Theme(color_scheme_seed=ft.Colors.BLUE)
+    page.add(AppView())
+
+
+if __name__ == "__main__":
+    ft.app(target=main)

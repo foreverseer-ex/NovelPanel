@@ -17,17 +17,27 @@ def build_example_image_dialog(meta: ModelMeta) -> ft.AlertDialog:
     :param meta: 含示例条目的模型元数据
     :return: 配置好的 Flet AlertDialog
     """
-    title_text = ft.Text("Example Images")
+    title_text = ft.Text("示例图片")
     content_container = ft.Container(width=600)
 
     state = {"view": 0, "selected_index": -1}
 
     def pil_to_base64(img):
+        """将 PIL Image 编码为 base64 PNG 字符串。
+        
+        :param img: PIL Image 对象
+        :return: base64 编码的字符串
+        """
         buf = io.BytesIO()
         img.save(buf, format="PNG")
         return base64.b64encode(buf.getvalue()).decode("utf-8")
 
     def render_content():
+        """根据当前视图状态渲染对话框内容。
+        
+        视图 0：显示示例图片网格
+        视图 1：显示选中图片的生成参数详情
+        """
         if state["view"] == 0:
             tiles = []
             try:
@@ -67,34 +77,52 @@ def build_example_image_dialog(meta: ModelMeta) -> ft.AlertDialog:
                     controls=items, tight=True, spacing=6, width=600
                 )
             else:
-                content_container.content = ft.Text("No example selected")
+                content_container.content = ft.Text("未选择示例")
 
     def render_actions():
+        """根据当前视图状态渲染对话框底部按钮。
+        
+        视图 0：显示"关闭"按钮
+        视图 1：显示"返回"和"关闭"按钮
+        """
         if state["view"] == 0:
-            dlg.actions = [ft.TextButton("Close", on_click=close_dialog)]
+            dlg.actions = [ft.TextButton("关闭", on_click=close_dialog)]
         else:
             dlg.actions = [
-                ft.TextButton("Back", on_click=back_to_list),
-                ft.TextButton("Close", on_click=close_dialog),
+                ft.TextButton("返回", on_click=back_to_list),
+                ft.TextButton("关闭", on_click=close_dialog),
             ]
 
     def enter_detail(e: ft.ControlEvent, index: int):
+        """进入示例图片详情视图。
+        
+        :param e: 控件事件对象
+        :param index: 选中的示例图片索引
+        """
         state["selected_index"] = index
         state["view"] = 1
-        title_text.value = "Example Detail"
+        title_text.value = "示例详情"
         render_content()
         render_actions()
         e.page.update()
 
     def back_to_list(e: ft.ControlEvent):
+        """返回示例图片列表视图。
+        
+        :param e: 控件事件对象
+        """
         state["view"] = 0
         state["selected_index"] = -1
-        title_text.value = "Example Images"
+        title_text.value = "示例图片"
         render_content()
         render_actions()
         e.page.update()
 
     def close_dialog(e: ft.ControlEvent):
+        """关闭对话框并重置状态。
+        
+        :param e: 控件事件对象
+        """
         state["view"] = 0
         state["selected_index"] = -1
         if e.page and e.page.dialog:

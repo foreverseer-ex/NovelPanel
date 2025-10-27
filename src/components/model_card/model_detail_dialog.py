@@ -27,13 +27,17 @@ def build_model_detail_dialog(meta: ModelMeta) -> ft.AlertDialog:
     rows = [ft.Text(f"{k}: {v}") for k, v in fields]
 
     def _close(e: ft.ControlEvent):
+        """关闭对话框的回调函数。
+        
+        :param e: 控件事件对象
+        """
         if e.page and e.page.dialog:
             e.page.dialog.open = False
             e.page.update()
 
     return ft.AlertDialog(
         modal=True,
-        title=ft.Text("Model Detail"),
+        title=ft.Text("模型详情"),
         content=ft.Column(controls=rows, tight=True, spacing=6, scroll=ft.ScrollMode.AUTO),
-        actions=[ft.TextButton("Close", on_click=_close)],
+        actions=[ft.TextButton("关闭", on_click=_close)],
     )

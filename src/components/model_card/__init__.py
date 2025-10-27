@@ -18,6 +18,10 @@ from .model_detail_dialog import build_model_detail_dialog
 class ModelCard(ft.Column):
     """模型的可视化卡片，展示关键信息。"""
     def __init__(self, model_meta: ModelMeta):
+        """初始化模型卡片。
+        
+        :param model_meta: 模型元数据对象
+        """
         super().__init__()
         self.model_meta = model_meta
         self.preview_image = model_meta_service.load_example_image(self.model_meta)
@@ -57,8 +61,8 @@ class ModelCard(ft.Column):
                 bgcolor=ft.Colors.GREY_800,
                 border_radius=8,
                 alignment=ft.alignment.center,
-                content=ft.Text("No Image", color=ft.Colors.WHITE70),
-                on_click=lambda e: self._open_examples_dialog(),
+                content=ft.Text("无图片", color=ft.Colors.WHITE70),
+                on_click=self._open_examples_dialog,
             )
         b64 = self._pil_to_base64(self.preview_image)
         return ft.Container(
@@ -67,7 +71,7 @@ class ModelCard(ft.Column):
             height=180,
             border_radius=8,
             clip_behavior=ft.ClipBehavior.HARD_EDGE,
-            on_click=lambda e: self._open_examples_dialog(),
+            on_click=self._open_examples_dialog,
         )
 
     def _build_info(self):
@@ -83,16 +87,25 @@ class ModelCard(ft.Column):
         return ft.Column(controls=[title, badges], spacing=4)
 
     def _open_detail_dialog(self, e: ft.ControlEvent | None = None):
-        """打开展示模型详细元数据的对话框。"""
+        """打开展示模型详细元数据的对话框。
+        
+        :param e: 控件事件对象
+        """
         dlg = build_model_detail_dialog(self.model_meta)
-        page = e.page if e else self.page
-        page.dialog = dlg
-        page.dialog.open = True
-        page.update()
+        page = e.page if e and e.page else self.page
+        if page:
+            page.dialog = dlg
+            page.dialog.open = True
+            page.update()
 
-    def _open_examples_dialog(self):
-        """打开列出模型示例图片的对话框。"""
+    def _open_examples_dialog(self, e: ft.ControlEvent | None = None):
+        """打开列出模型示例图片的对话框。
+        
+        :param e: 控件事件对象
+        """
         dlg = build_example_image_dialog(self.model_meta)
-        self.page.dialog = dlg
-        self.page.dialog.open = True
-        self.page.update()
+        page = e.page if e and e.page else self.page
+        if page:
+            page.dialog = dlg
+            page.dialog.open = True
+            page.update()
