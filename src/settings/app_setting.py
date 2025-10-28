@@ -11,7 +11,7 @@ from loguru import logger
 
 from .civitai_setting import CivitaiSettings
 from .sd_forge_setting import SdForgeSettings
-from .model_meta_setting import ModelMetaSettings
+from .ui_setting import UiSettings
 from .llm_setting import LlmSettings
 
 
@@ -22,7 +22,7 @@ class AppSettings(BaseModel):
     """
     civitai: CivitaiSettings = CivitaiSettings()
     sd_forge: SdForgeSettings = SdForgeSettings()
-    model_meta: ModelMetaSettings = ModelMetaSettings()
+    ui: UiSettings = UiSettings()
     llm: LlmSettings = LlmSettings()
     
     @classmethod

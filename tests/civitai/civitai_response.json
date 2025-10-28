@@ -1,0 +1,17 @@
+{
+  "token": "eyJKb2JzIjpbImRjY2E5NjVjLTg5MmMtNGFiZS1hMDIxLWE0YTFmYjVlZGYzZiJdfQ==",
+  "jobs": [
+    {
+      "jobId": "dcca965c-892c-4abe-a021-a4a1fb5edf3f",
+      "cost": 0.6400000000000001,
+      "result": [
+        {
+          "blobKey": "29CD7540E126E00CF093B5A0DC875C119AB800D3BD19E8D3E5986A414954BA7A",
+          "available": false,
+          "seed": 1079049371
+        }
+      ],
+      "scheduled": true
+    }
+  ]
+}

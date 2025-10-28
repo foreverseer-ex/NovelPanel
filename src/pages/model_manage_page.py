@@ -31,7 +31,7 @@ class ModelManagePage(ft.Column):
                 ft.dropdown.Option("Pony", "Pony"),
                 ft.dropdown.Option("Illustrious", "Illustrious"),
             ],
-            value=app_settings.model_meta.base_model_filter or "所有",
+            value=app_settings.ui.base_model_filter or "所有",
             on_change=self._on_filter_change,
             expand=True,
         )
@@ -42,17 +42,74 @@ class ModelManagePage(ft.Column):
         # LoRA 区域（占位，后面会动态填充）
         self.lora_section = ft.Column(spacing=SPACING_MEDIUM)
         
-        # 组合布局：筛选菜单 + Checkpoint + 分隔线 + LoRA
+        # 右上角：通过模型ID同步 按钮
+        self.sync_dialog_model_id = ft.TextField(label="Civitai 模型ID", keyboard_type=ft.KeyboardType.NUMBER)
+        self.sync_dialog_model_type = ft.Dropdown(
+            label="模型类型",
+            options=[ft.dropdown.Option("Checkpoint"), ft.dropdown.Option("LORA")],
+            value="Checkpoint",
+        )
+        self.sync_dialog_filename = ft.TextField(label="本地文件名（含后缀 .safetensors）")
+
+        def do_sync_by_id(_: ft.ControlEvent):
+            try:
+                mid = int(self.sync_dialog_model_id.value)
+            except Exception:
+                self.page.snack_bar = ft.SnackBar(content=ft.Text("模型ID格式错误"), bgcolor=ft.Colors.RED_700)
+                self.page.snack_bar.open = True
+                self.page.update()
+                return
+            mtype = self.sync_dialog_model_type.value
+            fname = self.sync_dialog_filename.value.strip()
+            if not fname:
+                self.page.snack_bar = ft.SnackBar(content=ft.Text("文件名不能为空"), bgcolor=ft.Colors.RED_700)
+                self.page.snack_bar.open = True
+                self.page.update()
+                return
+            # 同步并刷新
+            from services.model_meta import model_meta_service
+            model_meta_service.sync_by_model_id(mid, mtype, fname)
+            # 刷新本页模型视图
+            self.checkpoint_section.controls = []
+            self.lora_section.controls = []
+            self._render_models()
+            self.page.snack_bar = ft.SnackBar(content=ft.Text("同步完成"), bgcolor=ft.Colors.GREEN_700)
+            self.page.snack_bar.open = True
+            self.page.update()
+
+        self.sync_dialog = ft.AlertDialog(
+            modal=True,
+            title=ft.Text("通过 Civitai 模型ID 同步"),
+            content=ft.Column([
+                self.sync_dialog_model_id,
+                self.sync_dialog_model_type,
+                self.sync_dialog_filename,
+            ], tight=True, spacing=10),
+            actions=[
+                ft.TextButton("取消", on_click=lambda e: setattr(self.sync_dialog, 'open', False)),
+                ft.ElevatedButton("开始同步", on_click=do_sync_by_id),
+            ],
+        )
+
+        def open_sync_dialog(_: ft.ControlEvent):
+            if self.page:
+                self.page.dialog = self.sync_dialog
+                self.sync_dialog.open = True
+                self.page.update()
+
+        self.sync_by_id_button = ft.IconButton(icon=ft.Icons.CLOUD_DOWNLOAD, tooltip="通过模型ID同步", on_click=open_sync_dialog)
+
+        # 组合布局：筛选菜单 + 顶部按钮 + Checkpoint + 分隔线 + LoRA
         self.controls = [
             ft.Container(
                 content=ft.Row(
                     controls=[
-                        ft.Container(expand=1),  # 左侧弹性空间
+                        ft.Container(expand=1),
                         ft.Container(
                             content=self.filter_dropdown,
-                            expand=2,  # 占据至少 2/4 = 1/2 的宽度
+                            expand=2,
                         ),
-                        ft.Container(expand=1),  # 右侧弹性空间
+                        ft.Container(content=self.sync_by_id_button, expand=1, alignment=ft.alignment.center_right),
                     ],
                     spacing=0,
                 ),
@@ -77,9 +134,9 @@ class ModelManagePage(ft.Column):
         
         # 更新设置
         if selected_value == "所有":
-            app_settings.model_meta.base_model_filter = None
+            app_settings.ui.base_model_filter = None
         else:
-            app_settings.model_meta.base_model_filter = selected_value
+            app_settings.ui.base_model_filter = selected_value
         
         # 保存配置
         app_settings.save()
@@ -93,7 +150,7 @@ class ModelManagePage(ft.Column):
         :param models: 原始模型列表
         :return: 过滤后的模型列表
         """
-        filter_value = app_settings.model_meta.base_model_filter
+        filter_value = app_settings.ui.base_model_filter
         if filter_value is None:
             return models
         

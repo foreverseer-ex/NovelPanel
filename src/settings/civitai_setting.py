@@ -10,14 +10,9 @@ class CivitaiSettings(BaseModel):
 
     配置 Civitai 服务的基础 URL、API 密钥和请求超时。
     """
-    base_url: str = Field(
-        default="https://civitai.com",
-        description="Civitai 服务地址"
-    )
-    
-    api_key: Optional[str] = Field(
+    api_token: Optional[str] = Field(
         default=None,
-        description="Civitai API Key（可选，用于访问私有内容）"
+        description="Civitai API Token（可选，用于访问私有内容）"
     )
     
     timeout: float = Field(

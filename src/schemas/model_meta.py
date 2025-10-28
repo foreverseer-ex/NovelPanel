@@ -21,7 +21,7 @@ class GenerateArg(BaseModel):
     seed: int = -1
     width: int = 512
     height: int = 512
-    batch_size: int = 1
+    clip_skip: int | None = None
 
 
 class Example(BaseModel):

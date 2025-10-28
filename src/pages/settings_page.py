@@ -33,24 +33,15 @@ class SettingsPage(ft.Column):
         # Civitai 设置字段
         civitai_fields: Any = app_settings.civitai.model_fields
         
-        self.civitai_base_url_field = ft.TextField(
-            label="Civitai Base URL",
-            value=app_settings.civitai.base_url,
-            hint_text=civitai_fields['base_url'].description,  # type: ignore
-            expand=True,
-            on_blur=lambda _: self._save_civitai_base_url(),
-            on_submit=lambda _: self._save_civitai_base_url(),
-        )
-        
-        self.civitai_api_key_field = ft.TextField(
-            label="Civitai API Key",
-            value=app_settings.civitai.api_key or "",
-            hint_text=civitai_fields['api_key'].description,
+        self.civitai_api_token_field = ft.TextField(
+            label="Civitai API Token",
+            value=app_settings.civitai.api_token or "",
+            hint_text=civitai_fields['api_token'].description,
             password=True,
             can_reveal_password=True,
             expand=True,
-            on_blur=lambda _: self._save_civitai_api_key(),
-            on_submit=lambda _: self._save_civitai_api_key(),
+            on_blur=lambda _: self._save_civitai_api_token(),
+            on_submit=lambda _: self._save_civitai_api_token(),
         )
         
         self.civitai_timeout_field = ft.TextField(
@@ -182,8 +173,7 @@ class SettingsPage(ft.Column):
             ft.Container(
                 content=ft.Column(
                     controls=[
-                        self.civitai_base_url_field,
-                        self.civitai_api_key_field,
+                        self.civitai_api_token_field,
                         self.civitai_timeout_field,
                     ],
                     spacing=10,
@@ -234,22 +224,10 @@ class SettingsPage(ft.Column):
         ]
     
     # Civitai 设置保存方法
-    def _save_civitai_base_url(self):
-        """保存 Civitai Base URL。"""
-        new_value = self.civitai_base_url_field.value.strip()
-        if not new_value:
-            self._show_error("Base URL 不能为空")
-            self.civitai_base_url_field.value = app_settings.civitai.base_url
-            self.civitai_base_url_field.update()
-            return
-        
-        app_settings.civitai.base_url = new_value
-        self._save_config()
-    
-    def _save_civitai_api_key(self):
-        """保存 Civitai API Key。"""
-        new_value = self.civitai_api_key_field.value.strip() or None
-        app_settings.civitai.api_key = new_value
+    def _save_civitai_api_token(self):
+        """保存 Civitai API Token。"""
+        new_value = self.civitai_api_token_field.value.strip() or None
+        app_settings.civitai.api_token = new_value
         self._save_config()
     
     def _save_civitai_timeout(self):

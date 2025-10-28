@@ -1,7 +1,6 @@
 {
   "civitai": {
-    "base_url": "https://civitai.com",
-    "api_key": null,
+    "api_token": null,
     "timeout": 30.0
   },
   "sd_forge": {
