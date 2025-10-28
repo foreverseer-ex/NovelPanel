@@ -11,7 +11,7 @@ NovelPanel: turn any novel into a comic with one click. Paste a novel, let AI ex
 - SD-Forge API client: List models, switch options, and call txt2img with common parameters.
 - Flet UI: Desktop/web UI with NavigationRail and a responsive grid of model cards.
 
-Note: The end-to-end novel-to-comic pipeline and MCP (grok, fastapi-mcp) integrations are on the roadmap; current codebase focuses on model browsing and SD‑Forge connectivity.
+**Current Status:** MCP architecture and API definitions completed. All Router interfaces are defined and marked as TODO. Model management UI and SD-Forge/Civitai integration are fully functional.
 
 ## Tech Stack
 
@@ -80,19 +80,105 @@ $env:SD_FORGE_SETTINGS__BASE_URL = "http://127.0.0.1:7860"
 $env:CIVITAI_SETTINGS__API_KEY = "<optional>"
 ```
 
-## Current Workflow
+## Features Status
 
-- Model discovery: Read `.safetensors` from SD‑Forge `models` folders.
-- Metadata fetch: If no local metadata, query Civitai by file hash and cache `metadata.json` plus sample images.
-- Browse: Show cards in a responsive grid with example images and generation args.
-- Generate: `services/sd_forge.py` exposes `create_text2image` calling `/sdapi/v1/txt2img` with prompt, negative, sampler, steps, CFG, seed, size, styles, and LoRA tags.
+### ✅ Implemented
+
+- **UI Layer (Flet)**
+  - ✅ Model management page with sample images
+  - ✅ Async image loading component with loading states
+  - ✅ Model card component with example browser
+  - ✅ Responsive grid layout
+
+- **Service Layer**
+  - ✅ Civitai integration: auto-fetch metadata and examples
+  - ✅ SD-Forge API client: model lists, options, txt2img
+  - ✅ Model metadata management: local cache and batch download
+
+- **Schema Layer**
+  - ✅ Session model with novel metadata
+  - ✅ Character model with tag dictionary design
+  - ✅ Memory models (MemoryEntry, ChapterSummary)
+  - ✅ Model metadata (ModelMeta, Example, GenerateArg)
+
+- **Constants Layer**
+  - ✅ Character tag definitions (character_tags_description)
+  - ✅ Memory key definitions (novel_memory_description, user_memory_description)
+  - ✅ UI color constants
+
+### 🚧 TODO (API Defined, Implementation Pending)
+
+All MCP Router interfaces are defined with `raise NotImplementedError()`:
+
+- **Session Router** (`/session`) - 7 endpoints
+  - POST /create, GET /{id}, GET /, PUT /{id}, DELETE /{id}, PUT /{id}/status, PUT /{id}/progress
+
+- **File Router** (`/file`) - 4 endpoints
+  - PUT /novel, GET /novel, PUT /image, GET /image
+
+- **Reader Router** (`/reader`) - 8 endpoints
+  - POST /parse, GET /line/{idx}, GET /line/{idx}/chapter
+  - GET /chapters, GET /chapter/{idx}, GET /chapter/{idx}/summary, PUT /chapter/{idx}/summary
+
+- **Actor Router** (`/actor`) - 7 endpoints (2 implemented)
+  - POST /create, GET /{id}, GET /, PUT /{id}, DELETE /{id}
+  - ✅ GET /tag-description, ✅ GET /tag-descriptions
+
+- **Memory Router** (`/memory`) - 7 endpoints (2 implemented)
+  - POST /create, GET /{id}, GET /query, PUT /{id}, DELETE /{id}
+  - ✅ GET /key-description, ✅ GET /key-descriptions
+
+- **Draw Router** (`/draw`) - 6 endpoints
+  - GET /loras, GET /sd-models, GET /options, POST /options
+  - POST /generate, GET /image
+
+**Next Step:** Implement session management and file handling, set up database layer.
 
 ## Roadmap
 
-- Novel → Comic pipeline: LLM-based extraction and per-paragraph prompt synthesis, frame selection, page composition.
-- MCP integration: grok and fastapi-mcp as tools.
-- Multi-engine render: Add InvokeAI backend.
-- UI flows: Novel import, iterator, preview and selection, composition, export (CBZ/PDF).
+### Phase 1: MCP Core Implementation (In Progress)
+
+- [x] Complete MCP architecture design
+- [x] Define all Router interfaces and Schemas (36 endpoints defined)
+- [x] Add TODO markers and NotImplementedError for unimplemented endpoints
+- [x] Implement Actor Router tag queries (2/7 endpoints)
+- [x] Implement Memory Router key queries (2/7 endpoints)
+- [ ] Set up database storage layer (SQLModel + SQLite)
+- [ ] Implement Session/File Router (11 endpoints)
+- [ ] Implement Reader Router (novel parsing, 8 endpoints)
+- [ ] Implement Actor Router (character extraction, 5 endpoints remaining)
+- [ ] Implement Memory Router (5 endpoints remaining)
+- [ ] Implement Draw Router (prompt generation, 6 endpoints)
+
+### Phase 2: AI Integration
+
+- [ ] Integrate Grok/Claude for prompt planning
+- [ ] Implement character appearance → SD tags conversion
+- [ ] Implement scene description → prompt generation
+- [ ] A/B testing for prompt quality
+
+### Phase 3: UI Enhancement
+
+- [ ] Session management interface
+- [ ] Novel chapter tree view
+- [ ] Character editor
+- [ ] Image selection and rating
+- [ ] Panel drag-and-drop ordering
+- [ ] Export progress and preview
+
+### Phase 4: Multi-Engine Support
+
+- [ ] InvokeAI integration
+- [ ] ComfyUI integration
+- [ ] Seamless engine switching
+- [ ] Performance comparison tools
+
+### Phase 5: Advanced Features
+
+- [ ] ControlNet/IPAdapter support
+- [ ] Batch generation optimization
+- [ ] Cloud rendering support
+- [ ] Template library (style presets)
 
 ## Troubleshooting
 
@@ -104,6 +190,17 @@ $env:CIVITAI_SETTINGS__API_KEY = "<optional>"
 
 - Entry: `src/main.py` registers `AppView` from `pages/app.py`.
 - Model lists populate during `ModelMetaService.flush*`; first run may download metadata and sample images.
+- MCP Router interfaces are defined but not yet implemented; calls will raise `NotImplementedError`.
+- Look for `# TODO:` markers in code to understand pending features.
+- MCP Router requires LLM API configuration (Grok/Claude) for AI features (Phase 2).
+
+### Code Quality
+
+- ✅ All files include complete docstring comments
+- ✅ All functions have parameter and return value descriptions
+- ✅ Unimplemented features marked with `# TODO:` and `raise NotImplementedError()`
+- ✅ Code quality checked with pylint
+- ✅ Follows PEP 8 code style
 
 ## License
 

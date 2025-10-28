@@ -2,3 +2,6 @@
 
 包含各页面复用的 Flet 控件与组件。
 """
+from .editable_text import EditableText
+
+__all__ = ['EditableText']

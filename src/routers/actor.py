@@ -1,12 +1,13 @@
 """
 角色管理的路由。
 
-维护小说中的角色设定、外貌描述、SD标签等。
-为生成图像时的角色一致性提供支持。
+简化设计：基础的 CRUD 操作和预定义标签查询。
 """
 from typing import List, Optional, Dict
-from fastapi import APIRouter, Query
-from schemas.actor import Character, SceneCharacter, CharacterAppearance
+from fastapi import APIRouter, Query, HTTPException
+from schemas.actor import Character
+from constants.actor import character_tags_description
+
 
 router = APIRouter(
     prefix="/actor",
@@ -18,14 +19,10 @@ router = APIRouter(
 # ==================== 角色基本操作 ====================
 
 @router.post("/create", response_model=Character, summary="创建角色")
-async def create_character(
+async def create_actor(
     session_id: str,
     name: str,
-    aliases: Optional[List[str]] = None,
-    role: Optional[str] = None,
-    personality: Optional[str] = None,
-    appearance: Optional[CharacterAppearance] = None,
-    background: Optional[str] = None
+    tags: Optional[Dict[str, str]] = None
 ) -> Character:
     """
     创建新角色。
@@ -33,25 +30,22 @@ async def create_character(
     Args:
         session_id: 会话ID
         name: 角色名称
-        aliases: 别名列表（可选）
-        role: 角色定位（可选）
-        personality: 性格描述（可选）
-        appearance: 外貌描述（可选）
-        background: 背景故事（可选）
+        tags: 角色标签字典（可选，建议使用 constants.actor.character_tags_description 中定义的键）
     
     Returns:
         创建的角色对象（包含生成的 character_id）
     
     实现要点：
     - 生成唯一 character_id
-    - 可选：AI辅助生成外貌描述
-    - 自动记录创建时间
+    - tags 字典的值都应该是纯文本字符串
+    - 列表类型使用逗号分隔（如：别名、显著特征等）
     """
-    pass
+    # TODO: 实现角色创建逻辑
+    raise NotImplementedError("角色创建功能尚未实现")
 
 
 @router.get("/{character_id}", response_model=Character, summary="获取角色信息")
-async def get_character(
+async def get_actor(
     session_id: str,
     character_id: str
 ) -> Character:
@@ -65,39 +59,35 @@ async def get_character(
     Returns:
         角色对象
     """
-    pass
+    # TODO: 实现获取角色信息逻辑
+    raise NotImplementedError("获取角色功能尚未实现")
 
 
 @router.get("/", response_model=List[Character], summary="列出所有角色")
-async def list_characters(
+async def list_actors(
     session_id: str,
-    role_filter: Optional[str] = Query(None, description="角色定位过滤")
+    limit: int = Query(100, ge=1, le=1000, description="返回数量")
 ) -> List[Character]:
     """
     列出会话的所有角色。
     
     Args:
         session_id: 会话ID
-        role_filter: 按角色定位过滤（主角/配角等）
+        limit: 返回数量限制（默认100，最大1000）
     
     Returns:
         角色列表
     """
-    pass
+    # TODO: 实现角色列表查询逻辑
+    raise NotImplementedError("角色列表功能尚未实现")
 
 
 @router.put("/{character_id}", response_model=Character, summary="更新角色")
-async def update_character(
+async def update_actor(
     session_id: str,
     character_id: str,
     name: Optional[str] = None,
-    aliases: Optional[List[str]] = None,
-    role: Optional[str] = None,
-    personality: Optional[str] = None,
-    appearance: Optional[CharacterAppearance] = None,
-    background: Optional[str] = None,
-    relationships: Optional[Dict[str, str]] = None,
-    sd_tags: Optional[List[str]] = None
+    tags: Optional[Dict[str, str]] = None
 ) -> Character:
     """
     更新角色信息。
@@ -106,26 +96,21 @@ async def update_character(
         session_id: 会话ID
         character_id: 角色ID
         name: 新名称（可选）
-        aliases: 新别名（可选）
-        role: 新角色定位（可选）
-        personality: 新性格描述（可选）
-        appearance: 新外貌描述（可选）
-        background: 新背景故事（可选）
-        relationships: 新关系（可选）
-        sd_tags: 新SD标签（可选）
+        tags: 新标签字典（可选，会覆盖原有 tags）
     
     Returns:
         更新后的角色对象
     
     实现要点：
-    - 支持增量更新
-    - 更新 SD 标签时触发标签重组
+    - 只更新提供的字段
+    - tags 如果提供，会完全覆盖原有的 tags
     """
-    pass
+    # TODO: 实现角色更新逻辑
+    raise NotImplementedError("角色更新功能尚未实现")
 
 
 @router.delete("/{character_id}", summary="删除角色")
-async def delete_character(
+async def remove_actor(
     session_id: str,
     character_id: str
 ) -> dict:
@@ -138,115 +123,59 @@ async def delete_character(
     
     Returns:
         删除结果
-    
-    注意：检查是否有图片引用该角色
     """
-    pass
+    # TODO: 实现角色删除逻辑
+    raise NotImplementedError("角色删除功能尚未实现")
 
 
-# ==================== AI 辅助功能 ====================
+# ==================== 预定义标签查询 ====================
 
-@router.post("/extract", response_model=List[Character], summary="AI提取角色")
-async def extract_characters(
-    session_id: str,
-    auto_generate_appearance: bool = True
-) -> List[Character]:
+@router.get("/tag-description", summary="获取预定义标签的描述")
+async def get_tag_description(
+    tag: str = Query(..., description="标签名")
+) -> Dict[str, str]:
     """
-    从小说文本中提取角色列表（AI辅助）。
+    获取预定义标签的描述。
     
     Args:
-        session_id: 会话ID
-        auto_generate_appearance: 是否自动生成外貌描述
+        tag: 标签名
     
     Returns:
-        提取的角色列表
+        包含标签和描述的字典 {"tag": "...", "description": "..."}
+    
+    Raises:
+        404: 标签名不在预定义列表中
     
     实现要点：
-    - 使用 LLM 分析小说文本
-    - 识别主要角色及其关系
-    - 提取外貌、性格描述
-    - 自动标记首次出现位置
-    - 去重处理（同一角色的不同称呼）
+    - 从 constants.actor.character_tags_description 查找
+    - 如果标签不存在，返回 404
     """
-    pass
-
-
-@router.post("/{character_id}/tags", response_model=List[str], summary="生成SD标签")
-async def generate_character_tags(
-    session_id: str,
-    character_id: str,
-    base_model: str = 'sdxl'
-) -> List[str]:
-    """
-    为角色生成 Stable Diffusion 提示词标签。
+    if tag not in character_tags_description:
+        raise HTTPException(status_code=404, detail=f"标签名 '{tag}' 不在预定义列表中")
     
-    Args:
-        session_id: 会话ID
-        character_id: 角色ID
-        base_model: 目标模型类型（影响标签风格）
+    return {
+        "tag": tag,
+        "description": character_tags_description[tag]
+    }
+
+
+@router.get("/tag-descriptions", summary="获取所有预定义标签和描述")
+async def get_all_tag_descriptions() -> Dict[str, str]:
+    """
+    获取所有预定义的角色标签和描述。
     
     Returns:
-        SD 标签列表
+        所有预定义的标签字典
     
     实现要点：
-    - 根据外貌描述转换为 SD 标签
-    - 考虑模型特性（SD1.5/SDXL/Illustrious）
-    - 标签优先级排序
-    - 自动更新角色的 sd_tags 字段
+    - 返回 constants.actor.character_tags_description 完整字典
     
-    示例输出：
-    ["1girl", "long black hair", "blue eyes", "school uniform", "smile"]
+    示例返回：
+    {
+        "别名": "角色的其他称呼，逗号分隔...",
+        "角色定位": "角色在故事中的定位...",
+        "性别": "角色性别...",
+        ...
+    }
     """
-    pass
-
-
-@router.put("/{character_id}/appearance", response_model=Character, summary="更新角色外貌")
-async def update_character_appearance(
-    session_id: str,
-    character_id: str,
-    appearance: CharacterAppearance
-) -> Character:
-    """
-    更新角色外貌描述。
-    
-    Args:
-        session_id: 会话ID
-        character_id: 角色ID
-        appearance: 外貌描述
-    
-    Returns:
-        更新后的角色对象
-    
-    实现要点：
-    - 自动重新生成 SD 标签
-    """
-    pass
-
-
-# ==================== 场景中的角色 ====================
-
-@router.get("/scene", response_model=List[SceneCharacter], summary="获取场景中的角色")
-async def get_characters_in_scene(
-    session_id: str,
-    chapter_index: int = Query(..., ge=0, description="章节索引"),
-    paragraph_index: int = Query(..., ge=0, description="段落索引")
-) -> List[SceneCharacter]:
-    """
-    获取指定场景中出现的角色列表。
-    
-    Args:
-        session_id: 会话ID
-        chapter_index: 章节索引
-        paragraph_index: 段落索引
-    
-    Returns:
-        场景中的角色列表（含情绪、动作等）
-    
-    实现要点：
-    - AI 分析段落文本
-    - 识别出现的角色
-    - 提取角色的情绪和动作
-    - 用于生成该场景的图像提示词
-    """
-    pass
-
+    return character_tags_description

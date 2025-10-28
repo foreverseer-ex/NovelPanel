@@ -11,7 +11,7 @@ NovelPanel：一键将小说锻造成漫画。输入任意小说文本，AI 智�
 - SD‑Forge API 客户端：列出模型、切换选项、调用 txt2img 常用参数生成。
 - Flet UI：桌面/网页双端 UI，带导航与响应式卡片网格。
 
-**当前状态：** 已完成 MCP 架构设计和 API 定义，核心功能实现进行中。
+**当前状态：** 已完成 MCP 架构设计和 API 定义，所有 Router 接口已定义并标记为 TODO 待实现。模型管理 UI 和 SD-Forge/Civitai 集成功能已完成。
 
 ## 技术栈
 
@@ -64,6 +64,7 @@ src/
   constants/
     color.py             # UI 颜色常量
     memory.py            # 记忆系统键名定义（novel_memory_description, user_memory_description）
+    actor.py             # 角色系统标签定义（character_tags_description）
 ```
 
 ## 环境要求
@@ -168,21 +169,45 @@ NovelPanel 采用 **MCP (Model Context Protocol)** 架构，将小说转漫画�
 
 ### 4. **Actor Router** (`/actor`) - 角色管理
 
-维护角色库，保证图像中角色外貌一致性。
+简化设计：基础的 CRUD 操作和预定义标签查询。
+
+**设计原则：**
+- 简化模型：角色只包含 name 和 tags（字典）
+- 纯文本值：所有 tags 的值都是纯文本字符串（列表类型用逗号分隔）
+- 预定义标签：常用标签定义在 `constants.actor` 中（`character_tags_description`）
 
 **API端点：**
 
+**角色操作：**
 - `POST /actor/create`: 创建角色
 - `GET /actor/{character_id}`: 获取角色信息
 - `GET /actor/`: 列出所有角色
 - `PUT /actor/{character_id}`: 更新角色信息
-- `POST /actor/extract`: AI 从小说提取角色及外貌描述
-- `POST /actor/{character_id}/tags`: 将外貌转换为 SD 提示词标签
-- `PUT /actor/{character_id}/appearance`: 更新外貌，自动重新生成标签
-- `GET /actor/scene`: 识别段落中出现的角色
 - `DELETE /actor/{character_id}`: 删除角色
 
-**应用场景：** 确保主角在100页漫画中外貌一致，避免"每一页都像不同人"。
+**预定义标签查询：**
+- `GET /actor/tag-description`: 获取单个标签的描述（参数：tag）
+- `GET /actor/tag-descriptions`: 获取所有预定义标签
+
+**数据示例：**
+```python
+# 创建角色
+{
+    "name": "李云",
+    "tags": {
+        "别名": "云师兄, 小李",
+        "角色定位": "主角",
+        "性别": "男",
+        "年龄": "18岁",
+        "发型": "黑色长发",
+        "服饰": "蓝色道袍",
+        "性格": "沉稳冷静",
+        "SD标签": "1boy, long black hair, blue robe"
+    }
+}
+```
+
+**应用场景：** 管理角色信息，用于生成图像时的提示词构建和角色一致性保证。
 
 ### 5. **Memory Router** (`/memory`) - 记忆系统
 
@@ -295,30 +320,71 @@ NovelPanel 采用 **MCP (Model Context Protocol)** 架构，将小说转漫画�
 
 ### ✅ 已实现
 
-- 模型管理：扫描本地 SD‑Forge 模型，展示带示例图的卡片
-- Civitai 集成：自动获取模型元数据与示例图
-- SD‑Forge API：调用 txt2img 生成图像
-- Flet UI：响应式模型浏览界面
+- **UI 层 (Flet)**
+  - ✅ 模型管理页面：扫描本地 SD‑Forge 模型，展示带示例图的卡片
+  - ✅ 异步图片加载组件：支持 loading 状态、错误处理
+  - ✅ 模型卡片组件：支持示例图浏览和详情查看
+  - ✅ 响应式网格布局
 
-### 🚧 开发中（MCP 实现）
+- **Service 层**
+  - ✅ Civitai 集成：自动获取模型元数据与示例图
+  - ✅ SD‑Forge API 客户端：模型列表、选项设置、txt2img 生成
+  - ✅ 模型元数据管理：本地缓存与批量下载
 
-- 会话管理与文件处理
-- 小说解析与阅读器
-- 角色库与一致性管理
-- AI 提示词生成
-- 分镜组合与导出
+- **Schema 层**
+  - ✅ 会话模型 (Session)：包含小说元数据
+  - ✅ 角色模型 (Character)：简化的标签字典设计
+  - ✅ 记忆模型 (MemoryEntry, ChapterSummary)：键值对存储
+  - ✅ 模型元数据 (ModelMeta, Example, GenerateArg)
+
+- **Constants 层**
+  - ✅ 角色标签定义 (character_tags_description)
+  - ✅ 记忆键定义 (novel_memory_description, user_memory_description)
+  - ✅ UI 颜色常量
+
+### 🚧 待实现（已定义 API 和 TODO 标记）
+
+所有 MCP Router 接口已定义完成，函数体使用 `raise NotImplementedError()` 标记为待实现：
+
+- **Session Router** (`/session`) - 7 个接口
+  - POST /create, GET /{id}, GET /, PUT /{id}, DELETE /{id}, PUT /{id}/status, PUT /{id}/progress
+
+- **File Router** (`/file`) - 4 个接口
+  - PUT /novel, GET /novel, PUT /image, GET /image
+
+- **Reader Router** (`/reader`) - 8 个接口
+  - POST /parse, GET /line/{idx}, GET /line/{idx}/chapter
+  - GET /chapters, GET /chapter/{idx}, GET /chapter/{idx}/summary, PUT /chapter/{idx}/summary
+
+- **Actor Router** (`/actor`) - 7 个接口（2 个已实现）
+  - POST /create, GET /{id}, GET /, PUT /{id}, DELETE /{id}
+  - ✅ GET /tag-description, ✅ GET /tag-descriptions
+
+- **Memory Router** (`/memory`) - 7 个接口（2 个已实现）
+  - POST /create, GET /{id}, GET /query, PUT /{id}, DELETE /{id}
+  - ✅ GET /key-description, ✅ GET /key-descriptions
+
+- **Draw Router** (`/draw`) - 6 个接口
+  - GET /loras, GET /sd-models, GET /options, POST /options
+  - POST /generate, GET /image
+
+**下一步：** 实现会话管理和文件处理，搭建数据库存储层
 
 ## 路线图
 
 ### Phase 1: MCP 核心实现（进行中）
 
 - [x] 完成 MCP 架构设计
-- [x] 定义所有 Router 接口和 Schema
-- [ ] 实现 Session/File Router
-- [ ] 实现 Reader Router（小说解析）
-- [ ] 实现 Actor Router（角色提取）
-- [ ] 实现 Memory Router
-- [ ] 实现 Draw Router（提示词生成）
+- [x] 定义所有 Router 接口和 Schema（36 个接口已定义）
+- [x] 为所有未实现的接口添加 TODO 标记和 NotImplementedError
+- [x] 实现 Actor Router 的预定义标签查询（2/7 接口）
+- [x] 实现 Memory Router 的预定义键查询（2/7 接口）
+- [ ] 搭建数据库存储层（SQLModel + SQLite）
+- [ ] 实现 Session/File Router（11 个接口）
+- [ ] 实现 Reader Router（小说解析，8 个接口）
+- [ ] 实现 Actor Router（角色提取，5 个接口待完成）
+- [ ] 实现 Memory Router（5 个接口待完成）
+- [ ] 实现 Draw Router（提示词生成，6 个接口）
 
 ### Phase 2: AI 集成
 
@@ -404,8 +470,18 @@ python -m src.routers.session  # 测试会话管理
 ### 注意事项
 
 - 首次运行较慢：`ModelMetaService.flush*` 会下载元数据与示例图
-- MCP Router 需要配置 LLM API（Grok/Claude）才能使用 AI 功能
+- MCP Router 接口已定义但尚未实现，调用会抛出 `NotImplementedError`
+- 查看代码中的 `# TODO:` 标记可了解待实现功能
+- MCP Router 需要配置 LLM API（Grok/Claude）才能使用 AI 功能（Phase 2）
 - 图像生成需要 SD-Forge 运行在 `http://127.0.0.1:7860`
+
+### 代码质量
+
+- ✅ 所有文件包含完整的 docstring 注释
+- ✅ 所有函数包含参数和返回值说明
+- ✅ 未实现的功能使用 `# TODO:` 标记和 `raise NotImplementedError()`
+- ✅ 使用 pylint 进行代码质量检查
+- ✅ 遵循 PEP 8 代码风格
 
 ## 许可
 

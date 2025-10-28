@@ -4,15 +4,17 @@
 为给定模型提供预览图与基础信息徽章的卡片展示；
 支持打开"示例图片"与"模型详情"对话框。
 """
-import base64
-import io
-import asyncio
-
 import flet as ft
 
 from schemas.model_meta import ModelMeta
-from services.model_meta import model_meta_service
 from constants.color import ModelTypeChipColor, BaseModelColor
+from constants.ui_size import (
+    THUMBNAIL_WIDTH, THUMBNAIL_HEIGHT,
+    CARD_INFO_HEIGHT, CARD_TITLE_HEIGHT, CARD_TITLE_MAX_LINES,
+    CHIP_PADDING_H, CHIP_PADDING_V, CHIP_BORDER_RADIUS, CHIP_BORDER_WIDTH,
+    SPACING_SMALL,
+)
+from components.async_image import AsyncImage
 from .example_image_dialog import ExampleImageDialog
 from .model_detail_dialog import ModelDetailDialog
 
@@ -26,16 +28,26 @@ class ModelCard(ft.Column):
         """
         super().__init__()
         self.model_meta = model_meta
-        # 不再在初始化时加载图片，而是异步加载
-        self.preview_image = None
-        self.image_container = self._build_image()
+        # 使用 AsyncImage 组件
+        self.preview_image = AsyncImage(
+            model_meta=model_meta,
+            index=0,
+            width=THUMBNAIL_WIDTH,
+            height=THUMBNAIL_HEIGHT,
+            fit=ft.ImageFit.COVER,
+            on_click=self._open_examples_dialog,
+            border_radius=8,
+            loading_size=30,
+            loading_text="加载中...",
+            loading_text_size=12,
+        )
         info_control = self._build_info()
         self.controls = [
             ft.Card(
                 content=ft.Container(
                     content=ft.Column(
                         controls=[
-                            self.image_container,
+                            self.preview_image,
                             ft.Container(
                                 content=info_control,
                                 on_click=self._open_detail_dialog
@@ -43,93 +55,73 @@ class ModelCard(ft.Column):
                         ],
                         spacing=8,
                     ),
-                    padding=10,
+                    padding=SPACING_SMALL,
                 )
             )
         ]
 
-    @staticmethod
-    def _pil_to_base64(img):
-        """将 PIL Image 编码为 base64 PNG 字符串。"""
-        buf = io.BytesIO()
-        img.save(buf, format="PNG")
-        return base64.b64encode(buf.getvalue()).decode("utf-8")
-
-    def _build_image(self):
-        """构建预览图控件；初始显示loading，然后异步加载。"""
-        # 初始显示loading状态
-        return ft.Container(
-            width=260,
-            height=180,
-            bgcolor=ft.Colors.GREY_100,
-            border_radius=8,
-            alignment=ft.alignment.center,
-            content=ft.Column(
-                controls=[
-                    ft.ProgressRing(width=30, height=30),
-                    ft.Text("加载中...", size=12, color=ft.Colors.GREY_600),
-                ],
-                horizontal_alignment=ft.CrossAxisAlignment.CENTER,
-                spacing=8,
-            ),
-            on_click=self._open_examples_dialog,
-        )
-
-    async def _load_preview_image(self):
-        """异步加载预览图。"""
-        try:
-            # 在后台线程加载图片
-            self.preview_image = await asyncio.to_thread(
-                model_meta_service.load_example_image, self.model_meta
-            )
-            
-            if self.preview_image is None:
-                # 没有图片
-                self.image_container.content = ft.Text("无图片", color=ft.Colors.WHITE70)
-                self.image_container.bgcolor = ft.Colors.GREY_800
-            else:
-                # 转换为base64并更新
-                b64 = await asyncio.to_thread(self._pil_to_base64, self.preview_image)
-                self.image_container.content = ft.Image(src_base64=b64, fit=ft.ImageFit.COVER)
-                self.image_container.bgcolor = None
-                self.image_container.clip_behavior = ft.ClipBehavior.HARD_EDGE
-        except (FileNotFoundError, IOError, Exception):
-            # 加载失败
-            self.image_container.content = ft.Text("加载失败", color=ft.Colors.RED_400)
-            self.image_container.bgcolor = ft.Colors.GREY_200
-        
-        # 刷新显示
-        if self.page:
-            self.page.update()
-
-    def did_mount(self):
-        """卡片挂载后，触发异步加载图片。"""
-        super().did_mount()
-        if self.page:
-            self.page.run_task(self._load_preview_image)
-
     def _build_info(self):
         """构建标题与徽章，展示模型版本与基础类型。"""
-        title = ft.Text(self.model_meta.version_name, size=16, weight=ft.FontWeight.BOLD)
+        # 标题：固定高度容器，垂直居中，限制最多2行，超出部分显示省略号
+        title = ft.Container(
+            content=ft.Text(
+                self.model_meta.version_name,
+                size=16,
+                weight=ft.FontWeight.BOLD,
+                max_lines=CARD_TITLE_MAX_LINES,
+                overflow=ft.TextOverflow.ELLIPSIS,
+                tooltip=self.model_meta.version_name,  # 鼠标悬停显示完整名称
+            ),
+            height=CARD_TITLE_HEIGHT,  # 固定标题区域高度
+            alignment=ft.alignment.center_left,  # 垂直居中，水平左对齐
+        )
         
         # 获取模型类型和基础模型的颜色
         type_color = ModelTypeChipColor.get(self.model_meta.type)
         base_model_color = BaseModelColor.get(self.model_meta.base_model)
         
+        # 徽章行：使用 wrap=True 支持自动换行（flow 布局）
         badges = ft.Row(
             controls=[
-                ft.Chip(
-                    label=ft.Text(str(self.model_meta.type)),
+                ft.Container(
+                    content=ft.Text(
+                        f"类型：{self.model_meta.type}",
+                        size=12,
+                        color=ft.Colors.WHITE,
+                        weight=ft.FontWeight.W_500
+                    ),
                     bgcolor=type_color,
+                    padding=ft.padding.symmetric(horizontal=CHIP_PADDING_H, vertical=CHIP_PADDING_V),
+                    border_radius=CHIP_BORDER_RADIUS,
+                    border=ft.border.all(CHIP_BORDER_WIDTH, ft.Colors.with_opacity(0.3, ft.Colors.WHITE)),
                 ),
-                ft.Chip(
-                    label=ft.Text(str(self.model_meta.base_model)),
+                ft.Container(
+                    content=ft.Text(
+                        f"基础模型：{self.model_meta.base_model}",
+                        size=12,
+                        color=ft.Colors.WHITE,
+                        weight=ft.FontWeight.W_500
+                    ),
                     bgcolor=base_model_color,
+                    padding=ft.padding.symmetric(horizontal=CHIP_PADDING_H, vertical=CHIP_PADDING_V),
+                    border_radius=CHIP_BORDER_RADIUS,
+                    border=ft.border.all(CHIP_BORDER_WIDTH, ft.Colors.with_opacity(0.3, ft.Colors.WHITE)),
                 ),
             ],
-            spacing=10,
+            spacing=SPACING_SMALL,
+            run_spacing=SPACING_SMALL,  # 换行后的行间距
+            wrap=True,  # 启用自动换行（flow 布局）
         )
-        return ft.Column(controls=[title, badges], spacing=4)
+        
+        # 信息区域：标题固定高度 + chip 底部对齐
+        return ft.Container(
+            content=ft.Column(
+                controls=[title, badges],
+                spacing=SPACING_SMALL,
+                tight=False,  # 允许内容自然展开
+            ),
+            height=CARD_INFO_HEIGHT,  # 总高度固定，chip 自动底部对齐
+        )
 
     def _open_detail_dialog(self, e: ft.ControlEvent | None = None):
         """打开展示模型详细元数据的对话框。
@@ -139,10 +131,8 @@ class ModelCard(ft.Column):
         dlg = ModelDetailDialog(self.model_meta)
         page = e.page if e and e.page else self.page
         if page:
-            # 先打开对话框（立即显示）
+            # 打开对话框（AsyncImage 会自动加载）
             page.open(dlg)
-            # 然后异步加载图片
-            page.run_task(dlg.load_preview_image)
 
     def _open_examples_dialog(self, e: ft.ControlEvent | None = None):
         """打开列出模型示例图片的对话框。
@@ -152,7 +142,5 @@ class ModelCard(ft.Column):
         dlg = ExampleImageDialog(self.model_meta)
         page = e.page if e and e.page else self.page
         if page:
-            # 先打开对话框（立即显示）
+            # 打开对话框（AsyncImage 会自动加载）
             page.open(dlg)
-            # 然后异步加载图片
-            page.run_task(dlg.load_images)

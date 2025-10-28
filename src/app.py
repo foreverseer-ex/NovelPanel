@@ -3,11 +3,15 @@
 """
 import flet as ft
 from pages.model_manage_page import ModelManagePage
+from pages.settings_page import SettingsPage
+from settings.config_manager import config_manager
 
 class AppView(ft.Row):
     """应用主视图：左侧 NavigationRail + 右侧可切换的主内容区。
 
-    目前仅包含一个目的地：模型管理页面。
+    包含两个目的地：
+    - 模型管理页面
+    - 设置页面
     """
     def __init__(self):
         """初始化应用主视图。
@@ -15,7 +19,7 @@ class AppView(ft.Row):
         设置当前页面索引、展开状态和主内容区容器。
         """
         super().__init__()
-        self.current_page = 0  # 0: 模型管理
+        self.current_page = 0  # 0: 模型管理, 1: 设置
         self.expand = True
         self.main_area = ft.Container(expand=True, padding=10)
 
@@ -23,6 +27,8 @@ class AppView(ft.Row):
         """根据当前选中的页面索引渲染主内容区。"""
         if self.current_page == 0:
             self.main_area.content = ModelManagePage()
+        elif self.current_page == 1:
+            self.main_area.content = SettingsPage()
         else:
             self.main_area.content = ft.Container()
 
@@ -55,6 +61,11 @@ class AppView(ft.Row):
                     selected_icon=ft.Icons.LIST_ALT,
                     label="模型",
                 ),
+                ft.NavigationRailDestination(
+                    icon=ft.Icons.SETTINGS_OUTLINED,
+                    selected_icon=ft.Icons.SETTINGS,
+                    label="设置",
+                ),
             ],
             on_change=lambda e: self._goto(e.control.selected_index),
         )
@@ -66,7 +77,20 @@ class AppView(ft.Row):
 def main(page: ft.Page):
     """
     主函数：注册主题、字体与窗口标题，挂载 AppView。
+    
+    在应用启动时加载配置，在应用关闭时自动保存配置。
     """
+    # 加载配置
+    config_manager.load()
+    
+    # 注册应用关闭时的回调，自动保存配置
+    def on_window_close(e):
+        """窗口关闭时保存配置。"""
+        config_manager.save()
+    
+    page.on_window_event = lambda e: on_window_close(e) if e.data == "close" else None
+    
+    # 设置页面属性
     page.title = "NovelPanel"
     page.theme = ft.Theme(
         color_scheme_seed=ft.Colors.BLUE,

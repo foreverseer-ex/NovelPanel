@@ -37,7 +37,8 @@ async def parse_novel(
     - 更新 Session 的 total_lines、author 等字段
     - 缓存章节摘要到会话目录
     """
-    pass
+    # TODO: 实现小说解析逻辑
+    raise NotImplementedError("小说解析功能尚未实现")
 
 
 # ==================== 行读取 ====================
@@ -57,7 +58,8 @@ async def get_line(
     Returns:
         行内容（字符串）
     """
-    pass
+    # TODO: 实现读取行内容逻辑
+    raise NotImplementedError("读取行内容功能尚未实现")
 
 
 @router.get("/line/{line_index}/chapter", response_model=int, summary="获取行对应的章节索引")
@@ -75,7 +77,8 @@ async def get_line_chapter_index(
     Returns:
         章节索引（从0开始）
     """
-    pass
+    # TODO: 实现获取行所属章节逻辑
+    raise NotImplementedError("获取行所属章节功能尚未实现")
 
 
 # ==================== 章节管理 ====================
@@ -93,7 +96,8 @@ async def get_chapters(
     Returns:
         章节摘要列表
     """
-    pass
+    # TODO: 实现获取章节列表逻辑
+    raise NotImplementedError("获取章节列表功能尚未实现")
 
 
 @router.get("/chapter/{chapter_index}", response_model=ChapterSummary, summary="获取章节详情")
@@ -111,7 +115,8 @@ async def get_chapter(
     Returns:
         章节摘要
     """
-    pass
+    # TODO: 实现获取章节详情逻辑
+    raise NotImplementedError("获取章节详情功能尚未实现")
 
 
 @router.get("/chapter/{chapter_index}/summary", response_model=Optional[str], summary="获取章节梗概")
@@ -129,7 +134,8 @@ async def get_chapter_summary(
     Returns:
         章节梗概，如果未生成则返回 None
     """
-    pass
+    # TODO: 实现获取章节梗概逻辑
+    raise NotImplementedError("获取章节梗概功能尚未实现")
 
 
 @router.put("/chapter/{chapter_index}/summary", response_model=ChapterSummary, summary="设置章节梗概")
@@ -153,4 +159,5 @@ async def put_chapter_summary(
     - 存储到会话目录
     - 用于 AI 生成图像时提供上下文
     """
-    pass
+    # TODO: 实现设置章节梗概逻辑
+    raise NotImplementedError("设置章节梗概功能尚未实现")

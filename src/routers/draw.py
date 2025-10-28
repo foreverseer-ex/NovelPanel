@@ -31,7 +31,8 @@ async def get_loras(session_id: str) -> Dict[str, Any]:
     实现要点：
     - 直接调用 sd_forge_service.get_loras()
     """
-    pass
+    # TODO: 实现获取 LoRA 列表逻辑
+    raise NotImplementedError("获取 LoRA 列表功能尚未实现")
 
 
 @router.get("/sd-models", summary="获取 SD 模型列表")
@@ -48,7 +49,8 @@ async def get_sd_models(session_id: str) -> Dict[str, Any]:
     实现要点：
     - 直接调用 sd_forge_service.get_sd_models()
     """
-    pass
+    # TODO: 实现获取 SD 模型列表逻辑
+    raise NotImplementedError("获取 SD 模型列表功能尚未实现")
 
 
 @router.get("/options", summary="获取 SD 选项")
@@ -65,7 +67,8 @@ async def get_options(session_id: str) -> Dict[str, Any]:
     实现要点：
     - 直接调用 sd_forge_service.get_options()
     """
-    pass
+    # TODO: 实现获取 SD 选项逻辑
+    raise NotImplementedError("获取 SD 选项功能尚未实现")
 
 
 @router.post("/options", summary="设置 SD 选项")
@@ -88,7 +91,8 @@ async def set_options(
     实现要点：
     - 直接调用 sd_forge_service.set_options()
     """
-    pass
+    # TODO: 实现设置 SD 选项逻辑
+    raise NotImplementedError("设置 SD 选项功能尚未实现")
 
 
 # ==================== 图像生成 ====================
@@ -139,7 +143,8 @@ async def generate(
     - 保存图像到 storage/sessions/{session_id}/batches/{batch_id}/
     - 图像命名：0.png, 1.png, ...（根据 batch_size）
     """
-    pass
+    # TODO: 实现文生图逻辑
+    raise NotImplementedError("文生图功能尚未实现")
 
 
 @router.get("/image", response_class=FileResponse, summary="获取生成的图像")
@@ -164,4 +169,5 @@ async def get_image(
     - 设置正确的 Content-Type
     - 如果文件不存在，返回404
     """
-    pass
+    # TODO: 实现获取图像逻辑
+    raise NotImplementedError("获取图像功能尚未实现")

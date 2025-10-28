@@ -16,6 +16,7 @@ dependencies = [
   "pydantic-settings>=2.11.0",
   "pylint>=4.0.2",
   "pytest>=8.4.2",
+  "sqlmodel>=0.0.27",
 ]
 
 [tool.flet]
@@ -36,8 +37,8 @@ copyright = "Copyright (C) 2025 by Flet"
 [tool.flet.app]
 path = "src"
 
-[tool.uv]
-dev-dependencies = [
+[dependency-groups]
+dev = [
     "flet[all]==0.28.3",
 ]
 

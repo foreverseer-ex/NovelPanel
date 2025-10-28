@@ -1,0 +1,14 @@
+{
+  "civitai": {
+    "base_url": "https://civitai.com",
+    "api_key": null,
+    "timeout": 30.0
+  },
+  "sd_forge": {
+    "base_url": "http://127.0.0.1:7860",
+    "home": "C:\\path\\to\\sd-webui-forge",
+    "timeout": 30.0,
+    "generate_timeout": 120.0
+  }
+}
+

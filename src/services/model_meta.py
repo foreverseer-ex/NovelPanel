@@ -10,7 +10,7 @@ from loguru import logger
 
 from schemas.model_meta import ModelMeta
 from services.civitai import civitai_service
-from settings.path import checkpoint_meta_home, lora_meta_home
+from utils.path import checkpoint_meta_home, lora_meta_home
 from settings.sd_forge_setting import sd_forge_settings
 
 
@@ -70,6 +70,22 @@ class ModelMetaService:
         model_version_json = home / Path(meta.filename).stem / 'metadata.json'
         model_version_json.parent.mkdir(parents=True, exist_ok=True)
         model_version_json.write_text(meta.model_dump_json(indent=2), encoding='utf-8')
+    
+    @staticmethod
+    def update_desc(meta: ModelMeta, new_desc: str) -> None:
+        """
+        更新模型描述并保存。
+        
+        :param meta: 模型元数据对象
+        :param new_desc: 新的描述内容
+        """
+        # 更新描述
+        meta.desc = new_desc if new_desc else None
+        
+        # 保存到文件
+        ModelMetaService.save_meta(meta, meta.type)
+        
+        logger.info(f"已更新模型 {meta.name} 的描述")
 
     @staticmethod
     def load_example_image(meta: ModelMeta, index: int = 0) -> Image.Image | None:

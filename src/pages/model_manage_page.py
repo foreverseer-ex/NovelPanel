@@ -8,6 +8,7 @@ import flet as ft
 
 from components.model_card import ModelCard
 from services.model_meta import model_meta_service
+from constants.ui_size import GRID_COL_4, SPACING_SMALL
 
 
 class ModelManagePage(ft.Column):
@@ -30,11 +31,11 @@ class ModelManagePage(ft.Column):
         ]
         grid = ft.ResponsiveRow(
             controls=[
-                ft.Container(content=c, col={"xs": 12, "sm": 6, "md": 4, "lg": 3})
+                ft.Container(content=c, col=GRID_COL_4)
                 for c in cards
             ],
-            run_spacing=8,
-            spacing=8,
+            run_spacing=SPACING_SMALL,
+            spacing=SPACING_SMALL,
         )
         self.controls = [
             ft.Text("模型管理", size=20, weight=ft.FontWeight.BOLD),

@@ -36,7 +36,8 @@ async def put_novel(
     - 保存到会话目录（如 storage/sessions/{session_id}/novel.txt）
     - 触发小说解析任务
     """
-    pass
+    # TODO: 实现小说文件上传逻辑
+    raise NotImplementedError("小说文件上传功能尚未实现")
 
 
 @router.get("/novel", response_class=FileResponse, summary="获取小说文件")
@@ -54,7 +55,8 @@ async def get_novel(session_id: str) -> FileResponse:
     - 返回会话目录下的小说文件
     - 设置正确的 Content-Type
     """
-    pass
+    # TODO: 实现小说文件获取逻辑
+    raise NotImplementedError("小说文件获取功能尚未实现")
 
 
 # ==================== 生成图像 ====================
@@ -81,7 +83,8 @@ async def put_image(
     - 自动创建目录
     - 覆盖同名文件
     """
-    pass
+    # TODO: 实现图像保存逻辑
+    raise NotImplementedError("图像保存功能尚未实现")
 
 
 @router.get("/image", response_class=FileResponse, summary="获取生成的图像")
@@ -104,4 +107,5 @@ async def get_image(
     - 设置正确的 Content-Type
     - 如果文件不存在，返回404
     """
-    pass
+    # TODO: 实现图像获取逻辑
+    raise NotImplementedError("图像获取功能尚未实现")

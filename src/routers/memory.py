@@ -51,7 +51,8 @@ async def create_memory(
     - 自动记录时间戳
     - 如果 description 为空，自动从 constants.memory.memory_description 获取
     """
-    pass
+    # TODO: 实现记忆创建逻辑
+    raise NotImplementedError("记忆创建功能尚未实现")
 
 
 @router.get("/{memory_id}", response_model=MemoryEntry, summary="获取记忆条目")
@@ -69,7 +70,8 @@ async def get_memory(
     Returns:
         记忆条目
     """
-    pass
+    # TODO: 实现获取记忆逻辑
+    raise NotImplementedError("获取记忆功能尚未实现")
 
 
 @router.get("/query", response_model=List[MemoryEntry], summary="查询记忆")
@@ -94,7 +96,8 @@ async def query_memories(
     - 按时间排序
     - 支持分页
     """
-    pass
+    # TODO: 实现记忆查询逻辑
+    raise NotImplementedError("记忆查询功能尚未实现")
 
 
 @router.put("/{memory_id}", response_model=MemoryEntry, summary="更新记忆")
@@ -114,7 +117,8 @@ async def update_memory(
     Returns:
         更新后的记忆条目
     """
-    pass
+    # TODO: 实现记忆更新逻辑
+    raise NotImplementedError("记忆更新功能尚未实现")
 
 
 @router.delete("/{memory_id}", summary="删除记忆")
@@ -132,7 +136,8 @@ async def delete_memory(
     Returns:
         删除结果
     """
-    pass
+    # TODO: 实现记忆删除逻辑
+    raise NotImplementedError("记忆删除功能尚未实现")
 
 
 # ==================== 预定义键查询 ====================
