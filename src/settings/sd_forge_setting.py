@@ -2,11 +2,10 @@
 SD Forge 服务配置
 """
 from pathlib import Path
+from pydantic import BaseModel
 
-from pydantic_settings import BaseSettings
 
-
-class SdForgeSettings(BaseSettings):
+class SdForgeSettings(BaseModel):
     """SD Forge (Stable Diffusion WebUI) 配置类。
 
     配置 SD Forge 服务的地址、本地目录和超时设置。
@@ -43,6 +42,3 @@ class SdForgeSettings(BaseSettings):
         获取Stable-diffusion模型存储目录。
         """
         return self.models_home / 'Stable-diffusion'
-
-
-sd_forge_settings = SdForgeSettings()

@@ -44,10 +44,11 @@ LOADING_SIZE_LARGE = 40    # 大型 loading（大图）
 
 # ==================== Chip 标签样式 ====================
 
-CHIP_PADDING_H = 12          # 水平内边距
-CHIP_PADDING_V = 6           # 垂直内边距
-CHIP_BORDER_RADIUS = 16      # 圆角
-CHIP_BORDER_WIDTH = 2        # 边框宽度
+CHIP_PADDING_H = 8           # 水平内边距
+CHIP_PADDING_V = 4           # 垂直内边距
+CHIP_BORDER_RADIUS = 12      # 圆角
+CHIP_BORDER_WIDTH = 1        # 边框宽度
+CHIP_TEXT_SIZE = 11          # 文字大小
 
 
 # ==================== 响应式网格列配置 ====================

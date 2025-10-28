@@ -5,9 +5,7 @@
 每个字段在失焦或回车时自动保存。
 """
 import flet as ft
-from settings.civitai_setting import civitai_settings
-from settings.sd_forge_setting import sd_forge_settings
-from settings.config_manager import config_manager
+from settings.app_setting import app_settings
 
 
 class SettingsPage(ft.Column):
@@ -25,15 +23,15 @@ class SettingsPage(ft.Column):
         
         # 保存旧值用于验证失败时恢复
         self._old_values = {
-            'civitai_timeout': civitai_settings.timeout,
-            'sd_forge_timeout': sd_forge_settings.timeout,
-            'sd_forge_generate_timeout': sd_forge_settings.generate_timeout,
+            'civitai_timeout': app_settings.civitai.timeout,
+            'sd_forge_timeout': app_settings.sd_forge.timeout,
+            'sd_forge_generate_timeout': app_settings.sd_forge.generate_timeout,
         }
         
         # Civitai 设置字段
         self.civitai_base_url_field = ft.TextField(
             label="Civitai Base URL",
-            value=civitai_settings.base_url,
+            value=app_settings.civitai.base_url,
             hint_text="https://civitai.com",
             expand=True,
             on_blur=lambda _: self._save_civitai_base_url(),
@@ -42,7 +40,7 @@ class SettingsPage(ft.Column):
         
         self.civitai_api_key_field = ft.TextField(
             label="Civitai API Key (可选)",
-            value=civitai_settings.api_key or "",
+            value=app_settings.civitai.api_key or "",
             hint_text="输入 API Key 以访问私有内容",
             password=True,
             can_reveal_password=True,
@@ -53,7 +51,7 @@ class SettingsPage(ft.Column):
         
         self.civitai_timeout_field = ft.TextField(
             label="Civitai 请求超时 (秒)",
-            value=str(civitai_settings.timeout),
+            value=str(app_settings.civitai.timeout),
             keyboard_type=ft.KeyboardType.NUMBER,
             width=200,
             on_blur=lambda _: self._save_civitai_timeout(),
@@ -63,7 +61,7 @@ class SettingsPage(ft.Column):
         # SD Forge 设置字段
         self.sd_forge_base_url_field = ft.TextField(
             label="SD Forge Base URL",
-            value=sd_forge_settings.base_url,
+            value=app_settings.sd_forge.base_url,
             hint_text="http://127.0.0.1:7860",
             expand=True,
             on_blur=lambda _: self._save_sd_forge_base_url(),
@@ -72,7 +70,7 @@ class SettingsPage(ft.Column):
         
         self.sd_forge_home_field = ft.TextField(
             label="SD Forge 安装目录",
-            value=sd_forge_settings.home,
+            value=app_settings.sd_forge.home,
             hint_text=r"C:\path\to\sd-webui-forge",
             expand=True,
             on_blur=lambda _: self._save_sd_forge_home(),
@@ -81,7 +79,7 @@ class SettingsPage(ft.Column):
         
         self.sd_forge_timeout_field = ft.TextField(
             label="SD Forge 请求超时 (秒)",
-            value=str(sd_forge_settings.timeout),
+            value=str(app_settings.sd_forge.timeout),
             keyboard_type=ft.KeyboardType.NUMBER,
             width=200,
             on_blur=lambda _: self._save_sd_forge_timeout(),
@@ -90,7 +88,7 @@ class SettingsPage(ft.Column):
         
         self.sd_forge_generate_timeout_field = ft.TextField(
             label="SD Forge 生成超时 (秒)",
-            value=str(sd_forge_settings.generate_timeout),
+            value=str(app_settings.sd_forge.generate_timeout),
             keyboard_type=ft.KeyboardType.NUMBER,
             width=200,
             on_blur=lambda _: self._save_sd_forge_generate_timeout(),
@@ -154,17 +152,17 @@ class SettingsPage(ft.Column):
         new_value = self.civitai_base_url_field.value.strip()
         if not new_value:
             self._show_error("Base URL 不能为空")
-            self.civitai_base_url_field.value = civitai_settings.base_url
+            self.civitai_base_url_field.value = app_settings.civitai.base_url
             self.civitai_base_url_field.update()
             return
         
-        civitai_settings.base_url = new_value
+        app_settings.civitai.base_url = new_value
         self._save_config()
     
     def _save_civitai_api_key(self):
         """保存 Civitai API Key。"""
         new_value = self.civitai_api_key_field.value.strip() or None
-        civitai_settings.api_key = new_value
+        app_settings.civitai.api_key = new_value
         self._save_config()
     
     def _save_civitai_timeout(self):
@@ -174,7 +172,7 @@ class SettingsPage(ft.Column):
             if new_value <= 0:
                 raise ValueError("超时时间必须大于 0")
             
-            civitai_settings.timeout = new_value
+            app_settings.civitai.timeout = new_value
             self._old_values['civitai_timeout'] = new_value
             self._save_config()
             
@@ -190,11 +188,11 @@ class SettingsPage(ft.Column):
         new_value = self.sd_forge_base_url_field.value.strip()
         if not new_value:
             self._show_error("Base URL 不能为空")
-            self.sd_forge_base_url_field.value = sd_forge_settings.base_url
+            self.sd_forge_base_url_field.value = app_settings.sd_forge.base_url
             self.sd_forge_base_url_field.update()
             return
         
-        sd_forge_settings.base_url = new_value
+        app_settings.sd_forge.base_url = new_value
         self._save_config()
     
     def _save_sd_forge_home(self):
@@ -202,11 +200,11 @@ class SettingsPage(ft.Column):
         new_value = self.sd_forge_home_field.value.strip()
         if not new_value:
             self._show_error("安装目录不能为空")
-            self.sd_forge_home_field.value = sd_forge_settings.home
+            self.sd_forge_home_field.value = app_settings.sd_forge.home
             self.sd_forge_home_field.update()
             return
         
-        sd_forge_settings.home = new_value
+        app_settings.sd_forge.home = new_value
         self._save_config()
     
     def _save_sd_forge_timeout(self):
@@ -216,7 +214,7 @@ class SettingsPage(ft.Column):
             if new_value <= 0:
                 raise ValueError("超时时间必须大于 0")
             
-            sd_forge_settings.timeout = new_value
+            app_settings.sd_forge.timeout = new_value
             self._old_values['sd_forge_timeout'] = new_value
             self._save_config()
             
@@ -233,7 +231,7 @@ class SettingsPage(ft.Column):
             if new_value <= 0:
                 raise ValueError("超时时间必须大于 0")
             
-            sd_forge_settings.generate_timeout = new_value
+            app_settings.sd_forge.generate_timeout = new_value
             self._old_values['sd_forge_generate_timeout'] = new_value
             self._save_config()
             
@@ -245,7 +243,7 @@ class SettingsPage(ft.Column):
     
     def _save_config(self):
         """保存配置到文件并显示提示。"""
-        if config_manager.save():
+        if app_settings.save():
             self._show_success("已保存")
         else:
             self._show_error("保存失败，请查看日志")

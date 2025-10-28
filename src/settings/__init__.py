@@ -1,16 +1,16 @@
 """配置设置包。
 
-包含应用的各项配置设置类和配置管理器。
+包含应用的各项配置设置类。
 """
-from .civitai_setting import CivitaiSettings, civitai_settings
-from .sd_forge_setting import SdForgeSettings, sd_forge_settings
-from .config_manager import ConfigManager, config_manager
+from .app_setting import app_settings, AppSettings
+from .civitai_setting import CivitaiSettings
+from .sd_forge_setting import SdForgeSettings
+from .model_meta_setting import ModelMetaSettings
 
 __all__ = [
+    'app_settings',
+    'AppSettings',
     'CivitaiSettings',
-    'civitai_settings',
     'SdForgeSettings',
-    'sd_forge_settings',
-    'ConfigManager',
-    'config_manager',
+    'ModelMetaSettings',
 ]

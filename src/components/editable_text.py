@@ -26,7 +26,6 @@ class EditableText(ft.Container):
         multiline: bool = False,
         min_lines: int = 1,
         max_lines: Optional[int] = None,
-        selectable: bool = True,
         **kwargs
     ):
         """初始化可编辑文本组件。
@@ -38,7 +37,6 @@ class EditableText(ft.Container):
         :param multiline: 是否多行输入
         :param min_lines: 最小行数
         :param max_lines: 最大行数
-        :param selectable: 文本是否可选择
         :param kwargs: 传递给 Container 的其他参数
         """
         super().__init__(**kwargs)
@@ -50,14 +48,13 @@ class EditableText(ft.Container):
         self._multiline = multiline
         self._min_lines = min_lines
         self._max_lines = max_lines
-        self._selectable = selectable
         self._is_editing = False
         
         # 文本显示控件
         self._text_display = ft.Text(
             value=self._value if self._value else self._placeholder,
             size=self._text_size,
-            selectable=self._selectable,
+            selectable=False,  # 不可选中，确保点击事件能触发
             color=ft.Colors.GREY_400 if not self._value else None,
             italic=not self._value,  # 占位符斜体
         )
@@ -87,13 +84,13 @@ class EditableText(ft.Container):
         self.content = ft.Container(
             content=self._text_display,
             on_click=lambda e: self._enter_edit_mode(),
-            padding=5,
+            padding=ft.padding.only(top=2, bottom=2, left=0, right=4),  # 移除左侧边距
             border=ft.border.all(1, ft.Colors.TRANSPARENT),
             border_radius=4,
         )
         
         # 设置容器样式
-        self.padding = ft.padding.symmetric(vertical=4, horizontal=0)
+        self.padding = 0  # 移除外部 padding，由内部容器控制
         self.expand = True
     
     @property
@@ -160,7 +157,7 @@ class EditableText(ft.Container):
         self.content = ft.Container(
             content=self._text_display,
             on_click=lambda e: self._enter_edit_mode(),
-            padding=5,
+            padding=ft.padding.only(top=2, bottom=2, left=0, right=4),  # 移除左侧边距
             border=ft.border.all(1, ft.Colors.TRANSPARENT),
             border_radius=4,
         )

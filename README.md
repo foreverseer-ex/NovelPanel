@@ -26,13 +26,19 @@ NovelPanel：一键将小说锻造成漫画。输入任意小说文本，AI 智�
 ```text
 src/
   main.py                # Flet UI 应用入口
+  app.py                 # 主应用视图：侧边导航 + 主内容区
   
   # UI 层（Flet）
   pages/
-    app.py               # AppView：侧边导航 + 主内容区
     model_manage_page.py # 模型管理页
+    settings_page.py     # 设置页
   components/
+    async_image.py       # 异步图片加载组件
+    editable_text.py     # 可编辑文本组件
     model_card/          # 模型卡片组件
+      __init__.py        # ModelCard 主组件
+      example_image_dialog.py  # 示例图片对话框
+      model_detail_dialog.py   # 模型详情对话框
   
   # MCP 层（Model Context Protocol）- FastAPI 风格
   routers/
@@ -58,13 +64,26 @@ src/
   
   # 配置与常量
   settings/
+    config_manager.py    # 配置管理器（JSON 配置文件）
     sd_forge_setting.py  # SD‑Forge 配置
     civitai_setting.py   # Civitai 配置
-    path.py              # 路径配置
+  utils/
+    path.py              # 路径工具
   constants/
     color.py             # UI 颜色常量
+    ui_size.py           # UI 尺寸常量（图片、对话框、间距等）
     memory.py            # 记忆系统键名定义（novel_memory_description, user_memory_description）
     actor.py             # 角色系统标签定义（character_tags_description）
+
+# 文档
+docs/
+  configuration.md           # 配置系统使用文档
+  EDITABLE_TEXT_COMPONENT.md # 可编辑文本组件文档
+  UI_SIZE_CONSTANTS.md       # UI 尺寸常量文档
+
+# 配置文件
+config.json                  # 应用配置文件（git ignore）
+config.example.json          # 配置示例文件
 ```
 
 ## 环境要求
@@ -81,6 +100,32 @@ uv run flet run --web        # Web 模式
 ```
 
 ## 配置
+
+### 配置方式
+
+#### 方式 1：JSON 配置文件（推荐）
+
+复制 `config.example.json` 为 `config.json` 并编辑：
+
+```json
+{
+  "civitai": {
+    "base_url": "https://civitai.com",
+    "api_key": null,
+    "timeout": 10.0
+  },
+  "sd_forge": {
+    "base_url": "http://127.0.0.1:7860",
+    "home": "C:\\Users\\<you>\\sd-webui-forge",
+    "timeout": 10.0,
+    "generate_timeout": 300.0
+  }
+}
+```
+
+或者直接在应用的**设置页面**中可视化编辑配置，修改后自动保存。
+
+#### 方式 2：环境变量覆盖
 
 通过 pydantic-settings 支持环境变量覆盖。
 
@@ -101,6 +146,8 @@ $env:SD_FORGE_SETTINGS__HOME = "C:\Users\<you>\sd-webui-forge"
 $env:SD_FORGE_SETTINGS__BASE_URL = "http://127.0.0.1:7860"
 $env:CIVITAI_SETTINGS__API_KEY = "<optional>"
 ```
+
+详细配置说明请参阅 [docs/configuration.md](docs/configuration.md)。
 
 ## MCP 架构设计
 
@@ -280,6 +327,7 @@ NovelPanel 采用 **MCP (Model Context Protocol)** 架构，将小说转漫画�
 
 ## 工作流程示例
 
+
 ```text
 1. 用户上传小说《修仙小说.txt》
    └─> create_session() → session_id: "abc123"
@@ -316,20 +364,33 @@ NovelPanel 采用 **MCP (Model Context Protocol)** 架构，将小说转漫画�
    └─> 收集所有行的图像，按顺序组合成漫画
 ```
 
+
 ## 现有功能
 
 ### ✅ 已实现
 
+
 - **UI 层 (Flet)**
   - ✅ 模型管理页面：扫描本地 SD‑Forge 模型，展示带示例图的卡片
-  - ✅ 异步图片加载组件：支持 loading 状态、错误处理
+  - ✅ 设置页面：可视化编辑 Civitai 和 SD Forge 配置，自动保存
+  - ✅ 异步图片加载组件：支持 loading 状态、错误处理、点击事件
+  - ✅ 可编辑文本组件：单行/多行输入，点击编辑，失焦保存
   - ✅ 模型卡片组件：支持示例图浏览和详情查看
-  - ✅ 响应式网格布局
+  - ✅ 模型详情对话框：展示元数据、大图预览、可编辑说明
+  - ✅ 示例图片对话框：网格展示所有示例图，查看生成参数
+  - ✅ 响应式网格布局，统一的 UI 尺寸系统
+
+- **配置管理**
+  - ✅ 配置管理器 (ConfigManager)：JSON 配置文件加载/保存
+  - ✅ 应用启动时自动加载配置
+  - ✅ 应用关闭时自动保存配置
+  - ✅ 配置示例文件 (config.example.json)
+  - ✅ 环境变量覆盖支持
 
 - **Service 层**
   - ✅ Civitai 集成：自动获取模型元数据与示例图
   - ✅ SD‑Forge API 客户端：模型列表、选项设置、txt2img 生成
-  - ✅ 模型元数据管理：本地缓存与批量下载
+  - ✅ 模型元数据管理：本地缓存与批量下载、更新说明
 
 - **Schema 层**
   - ✅ 会话模型 (Session)：包含小说元数据
@@ -340,7 +401,14 @@ NovelPanel 采用 **MCP (Model Context Protocol)** 架构，将小说转漫画�
 - **Constants 层**
   - ✅ 角色标签定义 (character_tags_description)
   - ✅ 记忆键定义 (novel_memory_description, user_memory_description)
-  - ✅ UI 颜色常量
+  - ✅ UI 颜色常量 (ModelTypeChipColor, BaseModelColor)
+  - ✅ UI 尺寸常量 (图片、对话框、间距、Chip 等)
+
+- **文档**
+  - ✅ 配置系统使用文档 (docs/configuration.md)
+  - ✅ 可编辑文本组件文档 (docs/EDITABLE_TEXT_COMPONENT.md)
+  - ✅ UI 尺寸常量文档 (docs/UI_SIZE_CONSTANTS.md)
+  - ✅ 更新日志 (CHANGELOG.md)
 
 ### 🚧 待实现（已定义 API 和 TODO 标记）
 
@@ -379,6 +447,8 @@ NovelPanel 采用 **MCP (Model Context Protocol)** 架构，将小说转漫画�
 - [x] 为所有未实现的接口添加 TODO 标记和 NotImplementedError
 - [x] 实现 Actor Router 的预定义标签查询（2/7 接口）
 - [x] 实现 Memory Router 的预定义键查询（2/7 接口）
+- [x] 完成 UI 基础设施（模型管理、设置页面、通用组件）
+- [x] 实现配置管理系统（JSON 配置文件）
 - [ ] 搭建数据库存储层（SQLModel + SQLite）
 - [ ] 实现 Session/File Router（11 个接口）
 - [ ] 实现 Reader Router（小说解析，8 个接口）
@@ -462,18 +532,21 @@ python -m src.routers.session  # 测试会话管理
 
 ### 添加新功能
 
+
 1. 在 `schemas/` 定义数据模型
 2. 在 `routers/` 定义业务接口
 3. 在 `services/` 实现具体逻辑
 4. 在 UI 层调用 Router 接口
 
+
 ### 注意事项
 
 - 首次运行较慢：`ModelMetaService.flush*` 会下载元数据与示例图
+- 配置文件 `config.json` 会在首次保存配置后自动创建
 - MCP Router 接口已定义但尚未实现，调用会抛出 `NotImplementedError`
 - 查看代码中的 `# TODO:` 标记可了解待实现功能
 - MCP Router 需要配置 LLM API（Grok/Claude）才能使用 AI 功能（Phase 2）
-- 图像生成需要 SD-Forge 运行在 `http://127.0.0.1:7860`
+- 图像生成需要 SD-Forge 运行在配置的地址（默认 `http://127.0.0.1:7860`）
 
 ### 代码质量
 

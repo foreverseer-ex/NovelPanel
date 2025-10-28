@@ -11,7 +11,7 @@ from constants.color import ModelTypeChipColor, BaseModelColor
 from constants.ui_size import (
     THUMBNAIL_WIDTH, THUMBNAIL_HEIGHT,
     CARD_INFO_HEIGHT, CARD_TITLE_HEIGHT, CARD_TITLE_MAX_LINES,
-    CHIP_PADDING_H, CHIP_PADDING_V, CHIP_BORDER_RADIUS, CHIP_BORDER_WIDTH,
+    CHIP_PADDING_H, CHIP_PADDING_V, CHIP_BORDER_RADIUS, CHIP_BORDER_WIDTH, CHIP_TEXT_SIZE,
     SPACING_SMALL,
 )
 from components.async_image import AsyncImage
@@ -21,20 +21,24 @@ from .model_detail_dialog import ModelDetailDialog
 
 class ModelCard(ft.Column):
     """模型的可视化卡片，展示关键信息。"""
-    def __init__(self, model_meta: ModelMeta):
+    def __init__(self, model_meta: ModelMeta, all_models: list[ModelMeta] = None, index: int = 0):
         """初始化模型卡片。
         
         :param model_meta: 模型元数据对象
+        :param all_models: 所有模型列表（用于切换导航）
+        :param index: 当前模型在列表中的索引
         """
         super().__init__()
         self.model_meta = model_meta
+        self.all_models = all_models or [model_meta]
+        self.index = index
+        self.width = THUMBNAIL_WIDTH  # 固定宽度
         # 使用 AsyncImage 组件
         self.preview_image = AsyncImage(
             model_meta=model_meta,
             index=0,
             width=THUMBNAIL_WIDTH,
             height=THUMBNAIL_HEIGHT,
-            fit=ft.ImageFit.COVER,
             on_click=self._open_examples_dialog,
             border_radius=8,
             loading_size=30,
@@ -76,51 +80,31 @@ class ModelCard(ft.Column):
             alignment=ft.alignment.center_left,  # 垂直居中，水平左对齐
         )
         
-        # 获取模型类型和基础模型的颜色
-        type_color = ModelTypeChipColor.get(self.model_meta.type)
+        # 获取基础模型的颜色
         base_model_color = BaseModelColor.get(self.model_meta.base_model)
         
-        # 徽章行：使用 wrap=True 支持自动换行（flow 布局）
-        badges = ft.Row(
-            controls=[
-                ft.Container(
-                    content=ft.Text(
-                        f"类型：{self.model_meta.type}",
-                        size=12,
-                        color=ft.Colors.WHITE,
-                        weight=ft.FontWeight.W_500
-                    ),
-                    bgcolor=type_color,
-                    padding=ft.padding.symmetric(horizontal=CHIP_PADDING_H, vertical=CHIP_PADDING_V),
-                    border_radius=CHIP_BORDER_RADIUS,
-                    border=ft.border.all(CHIP_BORDER_WIDTH, ft.Colors.with_opacity(0.3, ft.Colors.WHITE)),
-                ),
-                ft.Container(
-                    content=ft.Text(
-                        f"基础模型：{self.model_meta.base_model}",
-                        size=12,
-                        color=ft.Colors.WHITE,
-                        weight=ft.FontWeight.W_500
-                    ),
-                    bgcolor=base_model_color,
-                    padding=ft.padding.symmetric(horizontal=CHIP_PADDING_H, vertical=CHIP_PADDING_V),
-                    border_radius=CHIP_BORDER_RADIUS,
-                    border=ft.border.all(CHIP_BORDER_WIDTH, ft.Colors.with_opacity(0.3, ft.Colors.WHITE)),
-                ),
-            ],
-            spacing=SPACING_SMALL,
-            run_spacing=SPACING_SMALL,  # 换行后的行间距
-            wrap=True,  # 启用自动换行（flow 布局）
+        # 基础模型 chip：占据整行宽度
+        base_model_chip = ft.Container(
+            content=ft.Text(
+                self.model_meta.base_model,
+                size=CHIP_TEXT_SIZE,
+                color=ft.Colors.WHITE,
+                weight=ft.FontWeight.BOLD,
+                text_align=ft.TextAlign.CENTER,
+            ),
+            bgcolor=base_model_color,
+            padding=ft.padding.symmetric(horizontal=CHIP_PADDING_H, vertical=CHIP_PADDING_V),
+            border_radius=CHIP_BORDER_RADIUS,
+            border=ft.border.all(CHIP_BORDER_WIDTH, ft.Colors.with_opacity(0.3, ft.Colors.WHITE)),
+            alignment=ft.alignment.center,
         )
         
-        # 信息区域：标题固定高度 + chip 底部对齐
-        return ft.Container(
-            content=ft.Column(
-                controls=[title, badges],
-                spacing=SPACING_SMALL,
-                tight=False,  # 允许内容自然展开
-            ),
-            height=CARD_INFO_HEIGHT,  # 总高度固定，chip 自动底部对齐
+        # 信息区域：标题 + 基础模型 chip
+        return ft.Column(
+            controls=[title, base_model_chip],
+            spacing=SPACING_SMALL,
+            tight=True,  # 紧凑排列，缩小底部间距
+            horizontal_alignment=ft.CrossAxisAlignment.STRETCH,  # 子元素横向拉伸填充
         )
 
     def _open_detail_dialog(self, e: ft.ControlEvent | None = None):
@@ -128,7 +112,11 @@ class ModelCard(ft.Column):
         
         :param e: 控件事件对象
         """
-        dlg = ModelDetailDialog(self.model_meta)
+        dlg = ModelDetailDialog(
+            model_meta=self.model_meta,
+            all_models=self.all_models,
+            current_index=self.index
+        )
         page = e.page if e and e.page else self.page
         if page:
             # 打开对话框（AsyncImage 会自动加载）

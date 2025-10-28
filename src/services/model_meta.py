@@ -11,7 +11,7 @@ from loguru import logger
 from schemas.model_meta import ModelMeta
 from services.civitai import civitai_service
 from utils.path import checkpoint_meta_home, lora_meta_home
-from settings.sd_forge_setting import sd_forge_settings
+from settings.app_setting import app_settings
 
 
 class ModelMetaService:
@@ -70,7 +70,7 @@ class ModelMetaService:
         model_version_json = home / Path(meta.filename).stem / 'metadata.json'
         model_version_json.parent.mkdir(parents=True, exist_ok=True)
         model_version_json.write_text(meta.model_dump_json(indent=2), encoding='utf-8')
-    
+
     @staticmethod
     def update_desc(meta: ModelMeta, new_desc: str) -> None:
         """
@@ -81,20 +81,20 @@ class ModelMetaService:
         """
         # 更新描述
         meta.desc = new_desc if new_desc else None
-        
+
         # 保存到文件
         ModelMetaService.save_meta(meta, meta.type)
-        
+
         logger.info(f"已更新模型 {meta.name} 的描述")
 
     @staticmethod
-    def load_example_image(meta: ModelMeta, index: int = 0) -> Image.Image | None:
+    def get_example_image_path(meta: ModelMeta, index: int = 0) -> Path:
         """
-        读取示例图片。
+        获取示例图片路径。
 
         :param meta: 模型元数据
         :param index: 示例图片索引
-        :return: 示例图片对象
+        :return: 示例图片路径
         """
         home = None
         match meta.type:
@@ -104,18 +104,7 @@ class ModelMetaService:
                 home = lora_meta_home / Path(meta.filename).stem
         # 忽略类型提示检查
         file = meta.examples[index].filename
-        return Image.open(home / file)
-
-    @staticmethod
-    def load_example_images(meta: ModelMeta) -> list[Image.Image]:
-        """
-        读取示例图片。
-
-        :param meta: 模型元数据
-        :return: 示例图片对象列表
-        """
-        home = checkpoint_meta_home / Path(meta.filename).stem
-        return [Image.open(home / example.filename) for example in meta.examples]
+        return home / file
 
     def flush(self):
         """
@@ -131,7 +120,7 @@ class ModelMetaService:
         刷新Lora模型元数据。
         遍历 Lora 目录，若无本地缓存则从 Civitai 拉取并保存。
         """
-        for file in sd_forge_settings.lora_home.glob('*.safetensors'):
+        for file in app_settings.sd_forge.lora_home.glob('*.safetensors'):
             model_meta = self.load_meta(file.stem, 'LORA')
             if model_meta is None:
                 logger.warning(f'未找到 {file.stem} 的模型元数据，尝试从 Civitai 获取')
@@ -169,7 +158,7 @@ class ModelMetaService:
         遍历 Checkpoint 目录，若无本地缓存则从 Civitai 拉取并保存。
         """
 
-        for file in sd_forge_settings.checkpoint_home.glob('*.safetensors'):
+        for file in app_settings.sd_forge.checkpoint_home.glob('*.safetensors'):
             model_meta = self.load_meta(file.stem, 'Checkpoint')
             if model_meta is None:
                 logger.warning(f'未找到 {file.stem} 的模型元数据，尝试从 Civitai 获取')

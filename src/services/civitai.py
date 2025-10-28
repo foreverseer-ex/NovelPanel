@@ -10,7 +10,7 @@ import httpx
 import aiofiles
 
 from schemas.model_meta import Example, GenerateArg, ModelMeta
-from settings.civitai_setting import civitai_settings
+from settings.app_setting import app_settings
 
 
 class CivitaiService:
@@ -25,9 +25,9 @@ class CivitaiService:
 
         :return: 是否连接成功
         """
-        url = f"{civitai_settings.base_url}/api/v1/models"
+        url = f"{app_settings.civitai.base_url}/api/v1/models"
         with httpx.Client(
-                timeout=civitai_settings.timeout
+                timeout=app_settings.civitai.timeout
         ) as client:
             resp = client.get(url)
             return resp.status_code == 200
@@ -55,31 +55,15 @@ class CivitaiService:
         :param file_hash: 模型哈希值
         :return: 模型详情（包含图片 URL）
         """
-        url = f"{civitai_settings.base_url}/api/v1/model-versions/by-hash/{file_hash}"
+        url = f"{app_settings.civitai.base_url}/api/v1/model-versions/by-hash/{file_hash}"
         with httpx.Client(
-                timeout=civitai_settings.timeout
+                timeout=app_settings.civitai.timeout
         ) as client:
             resp = client.get(url)
             if resp.status_code != 200:
                 return None
             return resp.json()
 
-    @staticmethod
-    def get_model_details(model_id: int) -> Optional[Dict[str, Any]]:
-        """
-        获取模型详情（包含图片 URL）。
-
-        :param model_id: 模型 ID
-        :return: 模型详情（包含图片 URL）
-        """
-        url = f"{civitai_settings.base_url}/api/v1/models/{model_id}"
-        with httpx.Client(
-                timeout=civitai_settings.timeout
-        ) as client:
-            resp = client.get(url)
-            if resp.status_code != 200:
-                return None
-            return resp.json()
 
     @classmethod
     def get_model_detail_by_path(cls, file_path: Path) -> Optional[Dict[str, Any]]:
@@ -103,7 +87,7 @@ class CivitaiService:
         :param save_path: 图片保存路径
         :return: 是否下载成功
         """
-        async with httpx.AsyncClient(timeout=civitai_settings.timeout) as client:
+        async with httpx.AsyncClient(timeout=app_settings.civitai.timeout) as client:
             resp = await client.get(url)
             if resp.status_code != 200:
                 return False

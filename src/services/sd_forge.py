@@ -5,7 +5,7 @@ from typing import Optional, Dict, Any
 
 import httpx
 
-from settings.sd_forge_setting import sd_forge_settings
+from settings.app_setting import app_settings
 
 
 class SdForgeService:
@@ -22,8 +22,8 @@ class SdForgeService:
 
         :return: LoRA 模型列表
         """
-        url = f"{sd_forge_settings.base_url}/sdapi/v1/loras"
-        with httpx.Client(timeout=sd_forge_settings.timeout) as client:
+        url = f"{app_settings.sd_forge.base_url}/sdapi/v1/loras"
+        with httpx.Client(timeout=app_settings.sd_forge.timeout) as client:
             resp = client.get(url)
             resp.raise_for_status()
             return resp.json()
@@ -35,8 +35,8 @@ class SdForgeService:
 
         :return: SD 模型列表
         """
-        url = f"{sd_forge_settings.base_url}/sdapi/v1/sd-models"
-        with httpx.Client(timeout=sd_forge_settings.timeout) as client:
+        url = f"{app_settings.sd_forge.base_url}/sdapi/v1/sd-models"
+        with httpx.Client(timeout=app_settings.sd_forge.timeout) as client:
             resp = client.get(url)
             resp.raise_for_status()
             return resp.json()
@@ -48,8 +48,8 @@ class SdForgeService:
 
         :return: SD 模型选项
         """
-        url = f"{sd_forge_settings.base_url}/sdapi/v1/options"
-        with httpx.Client(timeout=sd_forge_settings.timeout) as client:
+        url = f"{app_settings.sd_forge.base_url}/sdapi/v1/options"
+        with httpx.Client(timeout=app_settings.sd_forge.timeout) as client:
             resp = client.get(url)
             resp.raise_for_status()
             return resp.json()
@@ -66,13 +66,13 @@ class SdForgeService:
         :param sd_vae: VAE 模型，来自 /sdapi/v1/options 的 sd_vae 字段
         :return: None
         """
-        url = f"{sd_forge_settings.base_url}/sdapi/v1/options"
+        url = f"{app_settings.sd_forge.base_url}/sdapi/v1/options"
         payload = {}
         if sd_model_checkpoint:
             payload["sd_model_checkpoint"] = sd_model_checkpoint
         if sd_vae:
             payload["sd_vae"] = sd_vae
-        with httpx.Client(timeout=sd_forge_settings.timeout) as client:
+        with httpx.Client(timeout=app_settings.sd_forge.timeout) as client:
             resp = client.post(url, json=payload)
             resp.raise_for_status()
 
@@ -147,8 +147,8 @@ class SdForgeService:
         if styles:
             payload["styles"] = list(styles)
 
-        url = f"{sd_forge_settings.base_url}/sdapi/v1/txt2img"
-        with httpx.Client(timeout=sd_forge_settings.generate_timeout) as client:
+        url = f"{app_settings.sd_forge.base_url}/sdapi/v1/txt2img"
+        with httpx.Client(timeout=app_settings.sd_forge.generate_timeout) as client:
             resp = client.post(url, json=payload)
             resp.raise_for_status()
             return resp.json()

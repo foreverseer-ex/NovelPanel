@@ -13,7 +13,6 @@ from constants.ui_size import (
     LARGE_IMAGE_WIDTH, LARGE_IMAGE_HEIGHT,
     SPACING_SMALL, SPACING_MEDIUM,
     LOADING_SIZE_MEDIUM, LOADING_SIZE_LARGE,
-    GRID_COL_4,
 )
 
 
@@ -32,6 +31,7 @@ class ExampleImageDialog(ft.AlertDialog):
         self._view = 0  # 0: 网格视图, 1: 详情视图
         self._selected_index = -1
         self._image_containers = []  # 存储每张图片的 AsyncImage 控件
+        self._total_examples = len(model_meta.examples) if model_meta.examples else 0
         
         # 配置对话框属性
         self.modal = True
@@ -89,7 +89,6 @@ class ExampleImageDialog(ft.AlertDialog):
                 index=idx,
                 width=THUMBNAIL_WIDTH,
                 height=THUMBNAIL_HEIGHT,
-                fit=ft.ImageFit.COVER,
                 on_click=lambda e, i=idx: self._enter_detail(e, i),
                 border_radius=8,
                 loading_size=LOADING_SIZE_MEDIUM,
@@ -99,16 +98,17 @@ class ExampleImageDialog(ft.AlertDialog):
             self._image_containers.append(async_img)
             tiles.append(async_img)
         
-        grid = ft.ResponsiveRow(
-            controls=[
-                ft.Container(content=t, col=GRID_COL_4)
-                for t in tiles
-            ],
+        # 使用 Row + wrap=True 实现 flow layout
+        flow_layout = ft.Row(
+            controls=tiles,
+            wrap=True,
             run_spacing=SPACING_MEDIUM,
             spacing=SPACING_MEDIUM,
+            alignment=ft.MainAxisAlignment.START,
+            vertical_alignment=ft.CrossAxisAlignment.START,
         )
         self.content_container.content = ft.Column(
-            controls=[grid],
+            controls=[flow_layout],
             scroll=ft.ScrollMode.AUTO,
         )
     
@@ -118,16 +118,55 @@ class ExampleImageDialog(ft.AlertDialog):
         if 0 <= idx < len(self.model_meta.examples):
             ex = self.model_meta.examples[idx]
             
+            # 左右导航按钮
+            prev_button = ft.ElevatedButton(
+                content=ft.Icon(ft.Icons.CHEVRON_LEFT, size=40),
+                on_click=self._go_previous,
+                tooltip="上一张图片",
+                disabled=idx == 0,
+                style=ft.ButtonStyle(
+                    shape=ft.RoundedRectangleBorder(radius=10),
+                    padding=ft.padding.symmetric(horizontal=15, vertical=80),
+                ),
+                width=70,
+            )
+            
+            next_button = ft.ElevatedButton(
+                content=ft.Icon(ft.Icons.CHEVRON_RIGHT, size=40),
+                on_click=self._go_next,
+                tooltip="下一张图片",
+                disabled=idx >= self._total_examples - 1,
+                style=ft.ButtonStyle(
+                    shape=ft.RoundedRectangleBorder(radius=10),
+                    padding=ft.padding.symmetric(horizontal=15, vertical=80),
+                ),
+                width=70,
+            )
+            
             # 创建大图预览（使用 AsyncImage）
-            large_image = AsyncImage(
+            self.large_image_control = AsyncImage(
                 model_meta=self.model_meta,
                 index=idx,
                 width=LARGE_IMAGE_WIDTH,
                 height=LARGE_IMAGE_HEIGHT,
-                fit=ft.ImageFit.CONTAIN,  # 使用 CONTAIN 以保持完整图片
                 border_radius=8,
                 loading_size=LOADING_SIZE_LARGE,
                 loading_text="",
+            )
+            
+            # 图片行：左按钮 + 图片 + 右按钮
+            self.image_row = ft.Row(
+                controls=[
+                    prev_button,
+                    ft.Container(
+                        content=self.large_image_control,
+                        expand=True,
+                    ),
+                    next_button,
+                ],
+                alignment=ft.MainAxisAlignment.CENTER,
+                vertical_alignment=ft.CrossAxisAlignment.CENTER,
+                spacing=10,
             )
             
             # 构建参数信息行（参考 ModelDetailDialog 的样式）
@@ -162,12 +201,8 @@ class ExampleImageDialog(ft.AlertDialog):
             # 组合布局：大图在上，参数在下（表单风格）
             self.content_container.content = ft.Column(
                 controls=[
-                    # 大图容器（靠上对齐，表单风格）
-                    ft.Container(
-                        content=large_image,
-                        alignment=ft.alignment.top_center,
-                        padding=ft.padding.only(bottom=SPACING_MEDIUM),
-                    ),
+                    # 图片行（带左右按钮）
+                    self.image_row,
                     # 分隔线
                     ft.Divider(height=1, color=ft.Colors.GREY_400),
                     # 参数列表（表单风格，无标题）
@@ -182,10 +217,77 @@ class ExampleImageDialog(ft.AlertDialog):
                 ],
                 scroll=ft.ScrollMode.AUTO,
                 width=DIALOG_WIDE_WIDTH,
-                spacing=0,
+                spacing=SPACING_MEDIUM,
             )
         else:
             self.content_container.content = ft.Text("未选择示例")
+    
+    def _go_previous(self, e: ft.ControlEvent):
+        """切换到上一张图片。"""
+        if self._selected_index > 0:
+            self._selected_index -= 1
+            self._update_detail_content()
+            if e.page:
+                e.page.update()
+    
+    def _go_next(self, e: ft.ControlEvent):
+        """切换到下一张图片。"""
+        if self._selected_index < self._total_examples - 1:
+            self._selected_index += 1
+            self._update_detail_content()
+            if e.page:
+                e.page.update()
+    
+    def _update_detail_content(self):
+        """更新详情视图的内容（切换图片时调用）。"""
+        idx = self._selected_index
+        if 0 <= idx < len(self.model_meta.examples):
+            ex = self.model_meta.examples[idx]
+            
+            # 更新按钮状态
+            self.image_row.controls[0].disabled = idx == 0  # prev_button
+            self.image_row.controls[2].disabled = idx >= self._total_examples - 1  # next_button
+            
+            # 重新创建 AsyncImage 以刷新图片
+            self.large_image_control = AsyncImage(
+                model_meta=self.model_meta,
+                index=idx,
+                width=LARGE_IMAGE_WIDTH,
+                height=LARGE_IMAGE_HEIGHT,
+                border_radius=8,
+                loading_size=LOADING_SIZE_LARGE,
+                loading_text="",
+            )
+            self.image_row.controls[1] = ft.Container(
+                content=self.large_image_control,
+                expand=True,
+            )
+            
+            # 更新参数信息
+            def _make_row(label: str, value: str) -> ft.Row:
+                """创建一行标签-值对。"""
+                return ft.Row(
+                    controls=[
+                        ft.Text(f"{label}:", weight=ft.FontWeight.BOLD, width=100),
+                        ft.Text(value, selectable=True, expand=True),
+                    ],
+                    spacing=10,
+                )
+            
+            args = ex.args
+            param_rows = [
+                _make_row("基础模型", args.model),
+                _make_row("正面提示词", args.prompt if args.prompt else "无"),
+                _make_row("负面提示词", args.negative_prompt if args.negative_prompt else "无"),
+                _make_row(
+                    "生成参数",
+                    f"CFG: {args.cfg_scale} | 采样器: {args.sampler} | 步数: {args.steps} | 种子: {args.seed} | 尺寸: {args.width}×{args.height}"
+                ),
+            ]
+            
+            # 更新参数列表
+            param_container = self.content_container.content.controls[2]
+            param_container.content.controls = param_rows
     
     def _enter_detail(self, e: ft.ControlEvent, index: int):
         """进入示例图片详情视图。
