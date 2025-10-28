@@ -5,7 +5,7 @@
 小说元数据已合并到 Session 模型中。
 """
 from typing import Optional
-from fastapi import APIRouter, Query
+from fastapi import APIRouter, Query, Path
 from schemas.memory import ChapterSummary
 
 router = APIRouter(
@@ -46,7 +46,7 @@ async def parse_novel(
 @router.get("/line/{line_index}", response_model=str, summary="读取第 n 行")
 async def get_line(
         session_id: str,
-        line_index: int = Query(..., ge=0, description="行号（从0开始）")
+        line_index: int = Path(..., ge=0, description="行号（从0开始）")
 ) -> str:
     """
     读取指定行的内容。
@@ -103,7 +103,7 @@ async def get_chapters(
 @router.get("/chapter/{chapter_index}", response_model=ChapterSummary, summary="获取章节详情")
 async def get_chapter(
         session_id: str,
-        chapter_index: int = Query(..., ge=0, description="章节索引")
+        chapter_index: int = Path(..., ge=0, description="章节索引")
 ) -> ChapterSummary:
     """
     获取指定章节的详细信息。
@@ -122,7 +122,7 @@ async def get_chapter(
 @router.get("/chapter/{chapter_index}/summary", response_model=Optional[str], summary="获取章节梗概")
 async def get_chapter_summary(
         session_id: str,
-        chapter_index: int = Query(..., ge=0, description="章节索引")
+        chapter_index: int = Path(..., ge=0, description="章节索引")
 ) -> Optional[str]:
     """
     获取指定章节的故事梗概（AI生成）。

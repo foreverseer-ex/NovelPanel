@@ -56,7 +56,7 @@ class ModelManagePage(ft.Column):
                     ],
                     spacing=0,
                 ),
-                padding=ft.padding.only(bottom=SPACING_MEDIUM),
+                padding=ft.padding.only(top=SPACING_SMALL, bottom=SPACING_MEDIUM),
             ),
             self.checkpoint_section,
             ft.Divider(height=1, thickness=2),

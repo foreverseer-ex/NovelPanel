@@ -9,14 +9,21 @@ authors = [
 ]
 dependencies = [
   "aiofiles>=25.1.0",
+  "fastapi>=0.115.0",
   "fastapi-mcp>=0.4.0",
   "flet[all]==0.28.3",
+  "httpx>=0.28.1",
+  "langchain>=1.0.2",
+  "langchain-ollama>=1.0.0",
+  "langgraph>=1.0.1",
   "loguru>=0.7.3",
+  "openai>=2.6.1",
   "pillow>=11.3.0",
   "pydantic-settings>=2.11.0",
   "pylint>=4.0.2",
   "pytest>=8.4.2",
   "sqlmodel>=0.0.27",
+  "uvicorn>=0.34.0",
 ]
 
 [tool.flet]

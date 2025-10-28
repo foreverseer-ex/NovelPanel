@@ -2,7 +2,7 @@
 SD Forge 服务配置
 """
 from pathlib import Path
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 
 class SdForgeSettings(BaseModel):
@@ -10,10 +10,27 @@ class SdForgeSettings(BaseModel):
 
     配置 SD Forge 服务的地址、本地目录和超时设置。
     """
-    base_url: str = "http://127.0.0.1:7860"
-    home: str = r"C:\Users\zxb\Links\sd-webui-forge-aki-v1.0"
-    timeout: float = 30.0
-    generate_timeout: float = 120.0
+    base_url: str = Field(
+        default="http://127.0.0.1:7860",
+        description="SD Forge WebUI 服务地址"
+    )
+    
+    home: str = Field(
+        default=r"C:\Users\zxb\Links\sd-webui-forge-aki-v1.0",
+        description="SD Forge 安装目录"
+    )
+    
+    timeout: float = Field(
+        default=30.0,
+        gt=0,
+        description="API 请求超时时间（秒）"
+    )
+    
+    generate_timeout: float = Field(
+        default=120.0,
+        gt=0,
+        description="图像生成超时时间（秒）"
+    )
 
     @property
     def models_home(self):

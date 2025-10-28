@@ -6,6 +6,7 @@ from .app_setting import app_settings, AppSettings
 from .civitai_setting import CivitaiSettings
 from .sd_forge_setting import SdForgeSettings
 from .model_meta_setting import ModelMetaSettings
+from .llm_setting import LlmSettings
 
 __all__ = [
     'app_settings',
@@ -13,4 +14,5 @@ __all__ = [
     'CivitaiSettings',
     'SdForgeSettings',
     'ModelMetaSettings',
+    'LlmSettings',
 ]

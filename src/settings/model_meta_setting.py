@@ -2,7 +2,7 @@
 模型元数据配置
 """
 from typing import Optional, Literal
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 
 BaseModelType = Literal["SD 1.5", "SDXL 1.0", "Pony", "Illustrious"]
@@ -13,5 +13,8 @@ class ModelMetaSettings(BaseModel):
     
     配置模型筛选等选项。
     """
-    base_model_filter: Optional[BaseModelType] = None  # None 表示不筛选
+    base_model_filter: Optional[BaseModelType] = Field(
+        default=None,
+        description="基础模型过滤器（None 表示显示所有模型）"
+    )
 

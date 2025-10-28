@@ -69,9 +69,9 @@ class AppView(ft.Row):
             extended=False,
             destinations=[
                 ft.NavigationRailDestination(
-                    icon=ft.Icons.CHAT_BUBBLE_OUTLINE_ROUNDED,
-                    selected_icon=ft.Icons.CHAT_BUBBLE_ROUNDED,
-                    label="AI对话",
+                    icon=ft.Icons.BRUSH_OUTLINED,
+                    selected_icon=ft.Icons.BRUSH,
+                    label="绘画",
                 ),
                 ft.NavigationRailDestination(
                     icon=ft.Icons.LIST_ALT_OUTLINED,
@@ -103,8 +103,7 @@ def main(page: ft.Page):
         if e.data == "close":
             # 保存配置
             app_settings.save()
-            # 确保应用退出
-            page.window_destroy()
+
     
     page.on_window_event = on_window_event
     page.window_prevent_close = True  # 阻止默认关闭，使用自定义处理

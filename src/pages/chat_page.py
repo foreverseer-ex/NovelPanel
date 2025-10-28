@@ -56,9 +56,9 @@ class ChatPage(ft.Container):
         return ft.Container(
             content=ft.Row(
                 [
-                    ft.Icon(ft.Icons.CHAT_ROUNDED, size=24, color=ft.Colors.BLUE_400),
+                    ft.Icon(ft.Icons.BRUSH, size=24, color=ft.Colors.BLUE_400),
                     ft.Text(
-                        "AI 对话助手",
+                        "NovelPanel 助手",
                         size=18,
                         weight=ft.FontWeight.BOLD,
                     ),
@@ -69,12 +69,6 @@ class ChatPage(ft.Container):
                         tooltip="清空对话",
                         icon_size=20,
                         on_click=self._handle_clear_chat,
-                    ),
-                    ft.IconButton(
-                        icon=ft.Icons.SETTINGS_ROUNDED,
-                        tooltip="设置",
-                        icon_size=20,
-                        on_click=self._handle_settings,
                     ),
                 ],
                 spacing=10,
@@ -197,13 +191,4 @@ class ChatPage(ft.Container):
                 "请告诉我更具体的需求，我会尽力帮助您！😊"
             )
 
-    def _handle_settings(self, _e: ft.ControlEvent):
-        """处理设置按钮点击"""
-        if self.page:
-            self.page.snack_bar = ft.SnackBar(
-                content=ft.Text("聊天设置功能即将推出"),
-                duration=1500,
-            )
-            self.page.snack_bar.open = True
-            self.page.update()
 
