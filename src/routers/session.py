@@ -5,9 +5,15 @@
 维护项目基本信息：项目位置、session_id等。
 依赖配置（SD后端、LLM后端）使用 settings 模块。
 """
+import uuid
+from datetime import datetime
 from typing import List, Optional, Literal
-from fastapi import APIRouter, Query
+from fastapi import APIRouter, Query, HTTPException
+from loguru import logger
+
 from schemas.session import Session
+from services.db import SessionService
+from utils.path import project_home
 
 router = APIRouter(
     prefix="/session",
@@ -40,8 +46,28 @@ async def create_session(
     - 如果提供了小说路径，触发小说解析
     - 依赖配置从 settings 模块读取
     """
-    # TODO: 实现会话创建逻辑
-    raise NotImplementedError("会话创建功能尚未实现")
+    # 生成唯一会话ID
+    session_id = str(uuid.uuid4())
+    
+    # 创建项目路径
+    project_path = str(project_home / session_id)
+    
+    # 创建会话对象
+    session = Session(
+        session_id=session_id,
+        title=title,
+        novel_path=novel_path,
+        project_path=project_path,
+        status="created",
+        created_at=datetime.now(),
+        updated_at=datetime.now(),
+    )
+    
+    # 保存到数据库
+    created_session = SessionService.create(session)
+    logger.info(f"创建会话: {session_id}, 标题: {title}")
+    
+    return created_session
 
 
 @router.get("/{session_id}", response_model=Session, summary="获取会话信息")
@@ -58,8 +84,11 @@ async def get_session(session_id: str) -> Session:
     Raises:
         NotFoundError: 会话不存在
     """
-    # TODO: 实现获取会话信息逻辑
-    raise NotImplementedError("获取会话功能尚未实现")
+    session = SessionService.get(session_id)
+    if not session:
+        raise HTTPException(status_code=404, detail=f"会话不存在: {session_id}")
+    
+    return session
 
 
 @router.get("/", response_model=List[Session], summary="列出所有会话")
@@ -79,8 +108,14 @@ async def list_sessions(
     Returns:
         会话列表
     """
-    # TODO: 实现会话列表查询逻辑
-    raise NotImplementedError("会话列表功能尚未实现")
+    # 获取所有会话
+    sessions = SessionService.list(limit=limit, offset=offset)
+    
+    # 如果有状态过滤，应用过滤
+    if status_filter:
+        sessions = [s for s in sessions if s.status == status_filter]
+    
+    return sessions
 
 
 @router.put("/{session_id}", response_model=Session, summary="更新会话")
@@ -114,8 +149,32 @@ async def update_session(
     - 只更新提供的字段
     - 自动更新 updated_at 时间戳
     """
-    # TODO: 实现会话更新逻辑
-    raise NotImplementedError("会话更新功能尚未实现")
+    # 构建更新字典（只包含提供的字段）
+    update_data = {}
+    if title is not None:
+        update_data["title"] = title
+    if author is not None:
+        update_data["author"] = author
+    if total_lines is not None:
+        update_data["total_lines"] = total_lines
+    if total_chapters is not None:
+        update_data["total_chapters"] = total_chapters
+    if current_line is not None:
+        update_data["current_line"] = current_line
+    if current_chapter is not None:
+        update_data["current_chapter"] = current_chapter
+    if status is not None:
+        update_data["status"] = status
+    
+    # 自动更新时间戳
+    update_data["updated_at"] = datetime.now()
+    
+    # 更新会话
+    updated_session = SessionService.update(session_id, **update_data)
+    if not updated_session:
+        raise HTTPException(status_code=404, detail=f"会话不存在: {session_id}")
+    
+    return updated_session
 
 
 @router.delete("/{session_id}", summary="删除会话")
@@ -134,8 +193,12 @@ async def delete_session(session_id: str) -> dict:
     - 可选：删除或归档项目文件
     - 清理关联的记忆、角色、图片等数据
     """
-    # TODO: 实现会话删除逻辑
-    raise NotImplementedError("会话删除功能尚未实现")
+    success = SessionService.delete(session_id)
+    if not success:
+        raise HTTPException(status_code=404, detail=f"会话不存在: {session_id}")
+    
+    logger.info(f"删除会话: {session_id}")
+    return {"message": "会话删除成功", "session_id": session_id}
 
 
 @router.put("/{session_id}/status", response_model=Session, summary="更新会话状态")
@@ -157,8 +220,15 @@ async def update_session_status(
     - 后台任务更新处理状态
     - 标记任务完成或失败
     """
-    # TODO: 实现会话状态更新逻辑
-    raise NotImplementedError("会话状态更新功能尚未实现")
+    updated_session = SessionService.update(
+        session_id,
+        status=status,
+        updated_at=datetime.now()
+    )
+    if not updated_session:
+        raise HTTPException(status_code=404, detail=f"会话不存在: {session_id}")
+    
+    return updated_session
 
 
 @router.put("/{session_id}/progress", response_model=Session, summary="更新处理进度")
@@ -182,6 +252,14 @@ async def update_progress(
     - 快速更新处理进度
     - 进度百分比可以通过 current_line / total_lines 计算
     """
-    # TODO: 实现进度更新逻辑
-    raise NotImplementedError("进度更新功能尚未实现")
+    updated_session = SessionService.update(
+        session_id,
+        current_line=current_line,
+        current_chapter=current_chapter,
+        updated_at=datetime.now()
+    )
+    if not updated_session:
+        raise HTTPException(status_code=404, detail=f"会话不存在: {session_id}")
+    
+    return updated_session
 

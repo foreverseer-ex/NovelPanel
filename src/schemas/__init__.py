@@ -2,4 +2,25 @@
 
 包含应用中使用的所有 Pydantic 和 SQLModel 数据模型。
 """
+from .chat import (
+    ChatMessage, ChatHistory,
+    TextMessage, ToolCall, MessageContent,
+    ImageChoice, TextChoice, Choice
+)
+from .draw import DrawArgs
+from .model_meta import Example, ModelMeta
+
+__all__ = [
+    "ChatMessage",
+    "ChatHistory",
+    "TextMessage",
+    "ToolCall",
+    "MessageContent",
+    "ImageChoice",
+    "TextChoice",
+    "Choice",
+    "DrawArgs",
+    "Example",
+    "ModelMeta",
+]
 

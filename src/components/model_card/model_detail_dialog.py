@@ -4,15 +4,17 @@
 展示模型的详细元数据和大图预览。
 """
 import flet as ft
+from flet_toast import flet_toast
+from flet_toast.Types import Position
 from schemas.model_meta import ModelMeta
-from components.async_image import AsyncImage
+from components.async_media import AsyncMedia
 from components.editable_text import EditableText
-from services.model_meta import model_meta_service
+from services.model_meta import local_model_meta_service
 from constants.ui_size import (
     DIALOG_STANDARD_WIDTH, DIALOG_STANDARD_HEIGHT,
     LARGE_IMAGE_WIDTH, LARGE_IMAGE_HEIGHT,
     LOADING_SIZE_LARGE, DETAIL_LABEL_WIDTH,
-    SPACING_SMALL,
+    SPACING_SMALL, DETAIL_INFO_MIN_WIDTH,
 )
 
 
@@ -78,7 +80,7 @@ class ModelDetailDialog(ft.AlertDialog):
         )
         
         # 构建图片预览
-        self.preview_image_control = AsyncImage(
+        self.preview_image_control = AsyncMedia(
             model_meta=model_meta,
             index=0,
             width=LARGE_IMAGE_WIDTH,
@@ -105,16 +107,59 @@ class ModelDetailDialog(ft.AlertDialog):
         
         info_rows = self._build_info_rows()
         
-        self.content = ft.Column(
-            controls=[
-                self.image_row,
-                ft.Divider(),
-                ft.Column(controls=info_rows, tight=True, spacing=SPACING_SMALL),
-            ],
-            tight=True,
-            spacing=SPACING_SMALL,
-            scroll=ft.ScrollMode.AUTO,  # 整个对话框内容可滚动
-        )
+        # 根据图片宽高比决定布局方式
+        aspect_ratio = self._get_aspect_ratio()
+        
+        if aspect_ratio > 1.0:
+            # 宽图：使用垂直布局（上图下详情）
+            self.content = ft.Column(
+                controls=[
+                    self.image_row,
+                    ft.Divider(),
+                    ft.Column(controls=info_rows, tight=True, spacing=SPACING_SMALL),
+                ],
+                tight=True,
+                spacing=SPACING_SMALL,
+                scroll=ft.ScrollMode.AUTO,
+            )
+        else:
+            # 方图或高图：使用水平布局（左图右详情）
+            # 重新构建图片行，顺序为：向左按钮、图片、详情、向右按钮
+            image_with_left_nav = ft.Row(
+                controls=[
+                    self.prev_button,
+                    ft.Container(
+                        content=self.preview_image_control,
+                        width=LARGE_IMAGE_WIDTH,
+                    ),
+                ],
+                spacing=10,
+                vertical_alignment=ft.CrossAxisAlignment.CENTER,
+            )
+            
+            self.content = ft.Row(
+                controls=[
+                    # 左侧：向左按钮 + 图片
+                    image_with_left_nav,
+                    ft.VerticalDivider(width=1),
+                    # 中间：详情信息（可滚动）
+                    ft.Container(
+                        content=ft.Column(
+                            controls=info_rows,
+                            tight=True,
+                            spacing=SPACING_SMALL,
+                            scroll=ft.ScrollMode.AUTO,
+                        ),
+                        expand=True,
+                        padding=ft.padding.symmetric(horizontal=SPACING_SMALL),
+                        width=DETAIL_INFO_MIN_WIDTH,  # 设置最小宽度
+                    ),
+                    # 右侧：向右按钮
+                    self.next_button,
+                ],
+                spacing=SPACING_SMALL,
+                expand=True,
+            )
         
         # 移除底部按钮（关闭按钮已在标题栏右上角）
         self.actions = []
@@ -127,17 +172,47 @@ class ModelDetailDialog(ft.AlertDialog):
         meta = self.model_meta
         
         def _make_row(label: str, value: str) -> ft.Row:
-            """创建一行标签-值对。
+            """创建一行标签-值对（可点击复制）。
             
             :param label: 标签文本
-            :param value: 值文本
+            :param value: 值文本（原始完整值，用于复制）
             :return: Row 控件
             """
+            def _copy_to_clipboard(_e):
+                """复制值到剪贴板并显示提示"""
+                if self.page:
+                    self.page.set_clipboard(value)
+                    # 如果值太长，只显示前 50 个字符
+                    display_value = value if len(value) <= 50 else f"{value[:47]}..."
+                    flet_toast.success(
+                        page=self.page,
+                        message=f"✅ 已复制: {display_value}",
+                        position=Position.TOP_RIGHT,
+                        duration=2
+                    )
+            
+            # 显示值：如果超过 50 字符，显示为省略号（但复制时用完整值）
+            display_value = value if len(value) <= 50 else f"{value[:47]}..."
+            
+            # 标签和值都可以点击复制（使用 Container 包裹以实现点击效果）
+            label_control = ft.Container(
+                content=ft.Text(f"{label}:", weight=ft.FontWeight.BOLD),
+                on_click=_copy_to_clipboard,
+                tooltip=f"点击复制 {label}",
+                width=DETAIL_LABEL_WIDTH,
+                padding=ft.padding.symmetric(horizontal=0, vertical=2),
+            )
+            
+            value_control = ft.Container(
+                content=ft.Text(display_value),  # 使用截断后的显示值
+                on_click=_copy_to_clipboard,
+                tooltip="点击复制（完整内容）" if len(value) > 50 else "点击复制",
+                expand=True,
+                padding=ft.padding.symmetric(horizontal=5, vertical=2),
+            )
+            
             return ft.Row(
-                controls=[
-                    ft.Text(f"{label}:", weight=ft.FontWeight.BOLD, width=DETAIL_LABEL_WIDTH),
-                    ft.Text(value, selectable=True, expand=True),
-                ],
+                controls=[label_control, value_control],
                 spacing=10,
             )
         
@@ -162,7 +237,9 @@ class ModelDetailDialog(ft.AlertDialog):
         rows = [
             _make_row("版本名称", meta.version_name),
             _make_row("模型类型", meta.type),
-            _make_row("基础模型", meta.base_model),
+            _make_row("生态系统", meta.ecosystem.upper()),  # SD1, SD2, SDXL
+            _make_row("基础模型", meta.base_model if meta.base_model else "未知"),
+            _make_row("AIR 标识符", meta.air),  # ✨ 新增 AIR 行
         ]
         
         # 触发词
@@ -180,23 +257,41 @@ class ModelDetailDialog(ft.AlertDialog):
         
         return rows
     
+    def _get_aspect_ratio(self) -> float:
+        """获取当前模型示例图片的宽高比。
+        
+        :return: 宽高比（width / height），如果无法获取则返回 1.5（默认宽图）
+        """
+        if self.model_meta.examples:
+            # 获取第一个示例的尺寸
+            first_example = self.model_meta.examples[0]
+            width = first_example.args.width
+            height = first_example.args.height
+            if height > 0:
+                return width / height
+        
+        # 默认返回 1.5（宽图）
+        return 1.5
+    
     def _handle_desc_update(self, new_desc: str):
         """处理描述更新。
         
         :param new_desc: 新的描述内容
         """
-        # 调用服务更新描述
-        model_meta_service.update_desc(self.model_meta, new_desc)
+        import asyncio
+        
+        # 更新描述并保存
+        self.model_meta.desc = new_desc if new_desc else None
+        asyncio.run(local_model_meta_service.save(self.model_meta))
         
         # 显示提示（可选）
         if self.page:
-            snack_bar = ft.SnackBar(
-                content=ft.Text("说明已保存"),
-                duration=2000,
+            flet_toast.success(
+                page=self.page,
+                message="说明已保存",
+                position=Position.TOP_RIGHT,
+                duration=2
             )
-            self.page.snack_bar = snack_bar
-            snack_bar.open = True
-            self.page.update()
     
     def _go_previous(self, e: ft.ControlEvent):
         """切换到上一个模型。
@@ -226,7 +321,7 @@ class ModelDetailDialog(ft.AlertDialog):
         self.next_button.disabled = self.current_index >= len(self.all_models) - 1
         
         # 重新创建图片控件（修复图片不更新的问题）
-        self.preview_image_control = AsyncImage(
+        self.preview_image_control = AsyncMedia(
             model_meta=self.model_meta,
             index=0,
             width=LARGE_IMAGE_WIDTH,
@@ -244,16 +339,47 @@ class ModelDetailDialog(ft.AlertDialog):
         
         # 重新构建信息行
         info_rows = self._build_info_rows()
-        self.content = ft.Column(
-            controls=[
-                self.image_row,
-                ft.Divider(),
-                ft.Column(controls=info_rows, tight=True, spacing=SPACING_SMALL),
-            ],
-            tight=True,
-            spacing=SPACING_SMALL,
-            scroll=ft.ScrollMode.AUTO,
-        )
+        
+        # 根据图片宽高比决定布局方式
+        aspect_ratio = self._get_aspect_ratio()
+        
+        if aspect_ratio > 1.0:
+            # 宽图：使用垂直布局（上图下详情）
+            self.content = ft.Column(
+                controls=[
+                    self.image_row,
+                    ft.Divider(),
+                    ft.Column(controls=info_rows, tight=True, spacing=SPACING_SMALL),
+                ],
+                tight=True,
+                spacing=SPACING_SMALL,
+                scroll=ft.ScrollMode.AUTO,
+            )
+        else:
+            # 方图或高图：使用水平布局（左图右详情）
+            self.content = ft.Row(
+                controls=[
+                    # 左侧：图片（带导航按钮）
+                    ft.Container(
+                        content=self.image_row,
+                        width=LARGE_IMAGE_WIDTH + 160,
+                    ),
+                    ft.VerticalDivider(width=1),
+                    # 右侧：详情信息（可滚动）
+                    ft.Container(
+                        content=ft.Column(
+                            controls=info_rows,
+                            tight=True,
+                            spacing=SPACING_SMALL,
+                            scroll=ft.ScrollMode.AUTO,
+                        ),
+                        expand=True,
+                        padding=ft.padding.only(left=SPACING_SMALL),
+                    ),
+                ],
+                spacing=SPACING_SMALL,
+                expand=True,
+            )
         
         # 更新界面
         if self.page:

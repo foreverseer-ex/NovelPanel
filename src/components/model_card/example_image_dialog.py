@@ -2,17 +2,20 @@
 模型示例图片对话框。
 
 以网格形式展示已缓存的示例图，点击单项可查看对应生成参数；
-图片与参数均由 ModelMetaService 的本地缓存加载。
+图片与参数均由 LocalModelMetaService 的本地缓存加载。
 """
 import flet as ft
+from flet_toast import flet_toast
+from flet_toast.Types import Position
 from schemas.model_meta import ModelMeta
-from components.async_image import AsyncImage
+from components.async_media import AsyncMedia
 from constants.ui_size import (
     DIALOG_WIDE_WIDTH, DIALOG_WIDE_HEIGHT,
     THUMBNAIL_WIDTH, THUMBNAIL_HEIGHT,
     LARGE_IMAGE_WIDTH, LARGE_IMAGE_HEIGHT,
     SPACING_SMALL, SPACING_MEDIUM,
     LOADING_SIZE_MEDIUM, LOADING_SIZE_LARGE,
+    DETAIL_INFO_MIN_WIDTH,
 )
 
 
@@ -84,7 +87,7 @@ class ExampleImageDialog(ft.AlertDialog):
         tiles = []
         for idx in range(len(self.model_meta.examples)):
             # 使用 AsyncImage 组件
-            async_img = AsyncImage(
+            async_img = AsyncMedia(
                 model_meta=self.model_meta,
                 index=idx,
                 width=THUMBNAIL_WIDTH,
@@ -113,7 +116,7 @@ class ExampleImageDialog(ft.AlertDialog):
         )
     
     def _render_detail(self):
-        """渲染详情视图：顶部显示大图，下方显示生成参数。"""
+        """渲染详情视图：根据图片宽高比决定布局（上图下详情 或 左图右详情）。"""
         idx = self._selected_index
         if 0 <= idx < len(self.model_meta.examples):
             ex = self.model_meta.examples[idx]
@@ -144,7 +147,7 @@ class ExampleImageDialog(ft.AlertDialog):
             )
             
             # 创建大图预览（使用 AsyncImage）
-            self.large_image_control = AsyncImage(
+            self.large_image_control = AsyncMedia(
                 model_meta=self.model_meta,
                 index=idx,
                 width=LARGE_IMAGE_WIDTH,
@@ -169,56 +172,118 @@ class ExampleImageDialog(ft.AlertDialog):
                 spacing=10,
             )
             
-            # 构建参数信息行（参考 ModelDetailDialog 的样式）
+            # 构建参数信息行
             def _make_row(label: str, value: str) -> ft.Row:
-                """创建一行标签-值对。"""
+                """创建一行标签-值对，支持点击复制。"""
+                def _copy_to_clipboard(_e):
+                    """复制值到剪贴板并显示提示"""
+                    if self.page:
+                        self.page.set_clipboard(value)
+                        # 如果值太长，只显示前 50 个字符
+                        display_value = value if len(value) <= 50 else f"{value[:47]}..."
+                        flet_toast.success(
+                            page=self.page,
+                            message=f"✅ 已复制: {display_value}",
+                            position=Position.TOP_RIGHT,
+                            duration=2
+                        )
+                
+                # 显示值：如果超过 50 字符，显示为省略号
+                display_value = value if len(value) <= 50 else f"{value[:47]}..."
+                
+                # 标签和值都可以点击复制（使用 Container 包裹以实现点击效果）
+                label_control = ft.Container(
+                    content=ft.Text(f"{label}:", weight=ft.FontWeight.BOLD),
+                    on_click=_copy_to_clipboard,
+                    tooltip=f"点击复制 {label}",
+                    width=100,
+                    padding=ft.padding.symmetric(horizontal=0, vertical=2),
+                )
+                
+                value_control = ft.Container(
+                    content=ft.Text(display_value),
+                    on_click=_copy_to_clipboard,
+                    tooltip="点击复制（完整内容）" if len(value) > 50 else "点击复制",
+                    expand=True,
+                    padding=ft.padding.symmetric(horizontal=5, vertical=2),
+                )
+                
                 return ft.Row(
-                    controls=[
-                        ft.Text(f"{label}:", weight=ft.FontWeight.BOLD, width=100),
-                        ft.Text(value, selectable=True, expand=True),
-                    ],
+                    controls=[label_control, value_control],
                     spacing=10,
                 )
             
             args = ex.args
             param_rows = [
-                # 第一行：基础模型
                 _make_row("基础模型", args.model),
-                
-                # 第二行：正面提示词
                 _make_row("正面提示词", args.prompt if args.prompt else "无"),
-                
-                # 第三行：负面提示词
                 _make_row("负面提示词", args.negative_prompt if args.negative_prompt else "无"),
-                
-                # 第四行：参数汇总（cfg、采样器、步数、种子、尺寸）
                 _make_row(
                     "生成参数",
                     f"CFG: {args.cfg_scale} | 采样器: {args.sampler} | 步数: {args.steps} | 种子: {args.seed} | 尺寸: {args.width}×{args.height}"
                 ),
             ]
             
-            # 组合布局：大图在上，参数在下（表单风格）
-            self.content_container.content = ft.Column(
-                controls=[
-                    # 图片行（带左右按钮）
-                    self.image_row,
-                    # 分隔线
-                    ft.Divider(height=1, color=ft.Colors.GREY_400),
-                    # 参数列表（表单风格，无标题）
-                    ft.Container(
-                        content=ft.Column(
-                            controls=param_rows,
-                            tight=True,
-                            spacing=SPACING_SMALL,
+            # 计算宽高比
+            aspect_ratio = args.width / args.height if args.height > 0 else 1.5
+            
+            if aspect_ratio > 1.0:
+                # 宽图：使用垂直布局（上图下详情）
+                self.content_container.content = ft.Column(
+                    controls=[
+                        self.image_row,
+                        ft.Divider(height=1, color=ft.Colors.GREY_400),
+                        ft.Container(
+                            content=ft.Column(
+                                controls=param_rows,
+                                tight=True,
+                                spacing=SPACING_SMALL,
+                            ),
+                            padding=ft.padding.only(top=SPACING_SMALL),
                         ),
-                        padding=ft.padding.only(top=SPACING_SMALL),
-                    ),
-                ],
-                scroll=ft.ScrollMode.AUTO,
-                width=DIALOG_WIDE_WIDTH,
-                spacing=SPACING_MEDIUM,
-            )
+                    ],
+                    scroll=ft.ScrollMode.AUTO,
+                    width=DIALOG_WIDE_WIDTH,
+                    spacing=SPACING_MEDIUM,
+                )
+            else:
+                # 方图或高图：使用水平布局（左图右详情）
+                # 重新构建图片行，顺序为：向左按钮、图片、详情、向右按钮
+                image_with_left_nav = ft.Row(
+                    controls=[
+                        prev_button,
+                        ft.Container(
+                            content=self.large_image_control,
+                            width=LARGE_IMAGE_WIDTH,
+                        ),
+                    ],
+                    spacing=10,
+                    vertical_alignment=ft.CrossAxisAlignment.CENTER,
+                )
+                
+                self.content_container.content = ft.Row(
+                    controls=[
+                        # 左侧：向左按钮 + 图片
+                        image_with_left_nav,
+                        ft.VerticalDivider(width=1),
+                        # 中间：详情信息（可滚动）
+                        ft.Container(
+                            content=ft.Column(
+                                controls=param_rows,
+                                tight=True,
+                                spacing=SPACING_SMALL,
+                                scroll=ft.ScrollMode.AUTO,
+                            ),
+                            expand=True,
+                            padding=ft.padding.symmetric(horizontal=SPACING_SMALL),
+                            width=DETAIL_INFO_MIN_WIDTH,  # 设置最小宽度
+                        ),
+                        # 右侧：向右按钮
+                        next_button,
+                    ],
+                    expand=True,
+                    spacing=SPACING_SMALL,
+                )
         else:
             self.content_container.content = ft.Text("未选择示例")
     
@@ -249,7 +314,7 @@ class ExampleImageDialog(ft.AlertDialog):
             self.image_row.controls[2].disabled = idx >= self._total_examples - 1  # next_button
             
             # 重新创建 AsyncImage 以刷新图片
-            self.large_image_control = AsyncImage(
+            self.large_image_control = AsyncMedia(
                 model_meta=self.model_meta,
                 index=idx,
                 width=LARGE_IMAGE_WIDTH,
@@ -265,12 +330,42 @@ class ExampleImageDialog(ft.AlertDialog):
             
             # 更新参数信息
             def _make_row(label: str, value: str) -> ft.Row:
-                """创建一行标签-值对。"""
+                """创建一行标签-值对，支持点击复制。"""
+                def _copy_to_clipboard(_e):
+                    """复制值到剪贴板并显示提示"""
+                    if self.page:
+                        self.page.set_clipboard(value)
+                        # 如果值太长，只显示前 50 个字符
+                        display_value = value if len(value) <= 50 else f"{value[:47]}..."
+                        flet_toast.success(
+                            page=self.page,
+                            message=f"✅ 已复制: {display_value}",
+                            position=Position.TOP_RIGHT,
+                            duration=2
+                        )
+                
+                # 显示值：如果超过 50 字符，显示为省略号
+                display_value = value if len(value) <= 50 else f"{value[:47]}..."
+                
+                # 标签和值都可以点击复制（使用 Container 包裹以实现点击效果）
+                label_control = ft.Container(
+                    content=ft.Text(f"{label}:", weight=ft.FontWeight.BOLD),
+                    on_click=_copy_to_clipboard,
+                    tooltip=f"点击复制 {label}",
+                    width=100,
+                    padding=ft.padding.symmetric(horizontal=0, vertical=2),
+                )
+                
+                value_control = ft.Container(
+                    content=ft.Text(display_value),
+                    on_click=_copy_to_clipboard,
+                    tooltip="点击复制（完整内容）" if len(value) > 50 else "点击复制",
+                    expand=True,
+                    padding=ft.padding.symmetric(horizontal=5, vertical=2),
+                )
+                
                 return ft.Row(
-                    controls=[
-                        ft.Text(f"{label}:", weight=ft.FontWeight.BOLD, width=100),
-                        ft.Text(value, selectable=True, expand=True),
-                    ],
+                    controls=[label_control, value_control],
                     spacing=10,
                 )
             
@@ -285,9 +380,53 @@ class ExampleImageDialog(ft.AlertDialog):
                 ),
             ]
             
-            # 更新参数列表
-            param_container = self.content_container.content.controls[2]
-            param_container.content.controls = param_rows
+            # 计算宽高比
+            aspect_ratio = args.width / args.height if args.height > 0 else 1.5
+            
+            if aspect_ratio > 1.0:
+                # 宽图：使用垂直布局（上图下详情）
+                self.content_container.content = ft.Column(
+                    controls=[
+                        self.image_row,
+                        ft.Divider(height=1, color=ft.Colors.GREY_400),
+                        ft.Container(
+                            content=ft.Column(
+                                controls=param_rows,
+                                tight=True,
+                                spacing=SPACING_SMALL,
+                            ),
+                            padding=ft.padding.only(top=SPACING_SMALL),
+                        ),
+                    ],
+                    scroll=ft.ScrollMode.AUTO,
+                    width=DIALOG_WIDE_WIDTH,
+                    spacing=SPACING_MEDIUM,
+                )
+            else:
+                # 方图或高图：使用水平布局（左图右详情）
+                self.content_container.content = ft.Row(
+                    controls=[
+                        # 左侧：图片（带导航按钮）
+                        ft.Container(
+                            content=self.image_row,
+                            width=LARGE_IMAGE_WIDTH + 160,
+                        ),
+                        ft.VerticalDivider(width=1),
+                        # 右侧：详情信息（可滚动）
+                        ft.Container(
+                            content=ft.Column(
+                                controls=param_rows,
+                                tight=True,
+                                spacing=SPACING_SMALL,
+                                scroll=ft.ScrollMode.AUTO,
+                            ),
+                            expand=True,
+                            padding=ft.padding.only(left=SPACING_SMALL),
+                        ),
+                    ],
+                    expand=True,
+                    spacing=SPACING_SMALL,
+                )
     
     def _enter_detail(self, e: ft.ControlEvent, index: int):
         """进入示例图片详情视图。

@@ -12,6 +12,8 @@ dependencies = [
   "civitai-py>=0.1.10",
   "fastapi>=0.115.0",
   "fastapi-mcp>=0.4.0",
+  "flet-toast>=0.6.0",
+  "flet-video>=0.1.1",
   "flet[all]==0.28.3",
   "httpx>=0.28.1",
   "langchain>=1.0.2",
@@ -22,6 +24,7 @@ dependencies = [
   "pydantic-settings>=2.11.0",
   "pylint>=4.0.2",
   "pytest>=8.4.2",
+  "setuptools>=80.9.0",
   "sqlmodel>=0.0.27",
   "uvicorn>=0.34.0",
 ]

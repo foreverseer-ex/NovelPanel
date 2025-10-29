@@ -14,7 +14,7 @@ from constants.ui_size import (
     CHIP_PADDING_H, CHIP_PADDING_V, CHIP_BORDER_RADIUS, CHIP_BORDER_WIDTH, CHIP_TEXT_SIZE,
     SPACING_SMALL,
 )
-from components.async_image import AsyncImage
+from components.async_media import AsyncMedia
 from .example_image_dialog import ExampleImageDialog
 from .model_detail_dialog import ModelDetailDialog
 
@@ -34,7 +34,7 @@ class ModelCard(ft.Column):
         self.index = index
         self.width = THUMBNAIL_WIDTH  # 固定宽度
         # 使用 AsyncImage 组件
-        self.preview_image = AsyncImage(
+        self.preview_image = AsyncMedia(
             model_meta=model_meta,
             index=0,
             width=THUMBNAIL_WIDTH,
@@ -46,21 +46,31 @@ class ModelCard(ft.Column):
             loading_text_size=12,
         )
         info_control = self._build_info()
+        
+        # 获取基础模型的颜色（用于边框）
+        base_model_color = BaseModelColor.get(self.model_meta.base_model)
+        
         self.controls = [
-            ft.Card(
-                content=ft.Container(
-                    content=ft.Column(
-                        controls=[
-                            self.preview_image,
-                            ft.Container(
-                                content=info_control,
-                                on_click=self._open_detail_dialog
-                            ),
-                        ],
-                        spacing=8,
+            ft.Container(
+                content=ft.Card(
+                    content=ft.Container(
+                        content=ft.Column(
+                            controls=[
+                                self.preview_image,
+                                ft.Container(
+                                    content=info_control,
+                                    on_click=self._open_detail_dialog
+                                ),
+                            ],
+                            spacing=8,
+                        ),
+                        padding=SPACING_SMALL,
                     ),
-                    padding=SPACING_SMALL,
-                )
+                    elevation=2,  # 轻微阴影
+                ),
+                # ✨ 添加边框，颜色和 chip 一致
+                border=ft.border.all(2, base_model_color),
+                border_radius=10,
             )
         ]
 

@@ -25,6 +25,11 @@ async def lifespan(_app: FastAPI):
     """
     # Startup
     logger.info("NovelPanel MCP API 启动中...")
+    
+    # 初始化数据库
+    from services.db import init_db
+    init_db()
+    
     logger.info("FastAPI 文档: http://127.0.0.1:8000/docs")
     logger.info("MCP 服务端点: http://127.0.0.1:8000/mcp")
 

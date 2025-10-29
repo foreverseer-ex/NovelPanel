@@ -5,7 +5,8 @@ import flet as ft
 from pages.model_manage_page import ModelManagePage
 from pages.settings_page import SettingsPage
 from pages.chat_page import ChatPage
-from settings.app_setting import app_settings
+from pages.help_page import HelpPage
+from settings import app_settings
 
 class AppView(ft.Row):
     """应用主视图：左侧 NavigationRail + 右侧可切换的主内容区。
@@ -25,7 +26,7 @@ class AppView(ft.Row):
         """
         super().__init__()
         self.page = page
-        self.current_page = 0  # 0: AI对话, 1: 模型管理, 2: 设置
+        self.current_page = 0  # 0: AI对话, 1: 模型管理, 2: 设置, 3: 帮助
         self.expand = True
         self.main_area = ft.Container(
             expand=True,
@@ -41,6 +42,8 @@ class AppView(ft.Row):
             self.main_area.content = ModelManagePage()
         elif self.current_page == 2:
             self.main_area.content = SettingsPage()
+        elif self.current_page == 3:
+            self.main_area.content = HelpPage(self.page)
         else:
             self.main_area.content = ft.Container()
 
@@ -83,6 +86,11 @@ class AppView(ft.Row):
                     selected_icon=ft.Icons.SETTINGS,
                     label="设置",
                 ),
+                ft.NavigationRailDestination(
+                    icon=ft.Icons.HELP_OUTLINE,
+                    selected_icon=ft.Icons.HELP,
+                    label="帮助",
+                ),
             ],
             on_change=lambda e: self._goto(e.control.selected_index),
         )
@@ -110,6 +118,7 @@ def main(page: ft.Page):
     
     # 设置页面属性
     page.title = "NovelPanel"
+    page.window_full_screen = True  # 默认全屏
     page.theme = ft.Theme(
         color_scheme_seed=ft.Colors.BLUE,
         font_family="Microsoft YaHei",  # 设置全局字体为微软雅黑（Windows 系统自带）
@@ -119,4 +128,9 @@ def main(page: ft.Page):
 
 
 if __name__ == "__main__":
+    # 初始化数据库
+    from services.db import init_db
+    init_db()
+    
+    # 启动应用
     ft.app(target=main)

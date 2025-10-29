@@ -3,11 +3,14 @@
 
 简化设计：基础的 CRUD 操作和预定义标签查询。
 """
+import uuid
 from typing import List, Optional, Dict
 from fastapi import APIRouter, Query, HTTPException
+from loguru import logger
+
 from schemas.actor import Character
 from constants.actor import character_tags_description
-
+from services.db import CharacterService
 
 router = APIRouter(
     prefix="/actor",
@@ -40,8 +43,22 @@ async def create_actor(
     - tags 字典的值都应该是纯文本字符串
     - 列表类型使用逗号分隔（如：别名、显著特征等）
     """
-    # TODO: 实现角色创建逻辑
-    raise NotImplementedError("角色创建功能尚未实现")
+    # 生成唯一角色ID
+    character_id = str(uuid.uuid4())
+    
+    # 创建角色对象
+    character = Character(
+        character_id=character_id,
+        session_id=session_id,
+        name=name,
+        tags=tags or {}
+    )
+    
+    # 保存到数据库
+    created_character = CharacterService.create(character)
+    logger.info(f"创建角色: {name} (session: {session_id})")
+    
+    return created_character
 
 
 @router.get("/{character_id}", response_model=Character, summary="获取角色信息")
@@ -59,8 +76,11 @@ async def get_actor(
     Returns:
         角色对象
     """
-    # TODO: 实现获取角色信息逻辑
-    raise NotImplementedError("获取角色功能尚未实现")
+    character = CharacterService.get(character_id)
+    if not character or character.session_id != session_id:
+        raise HTTPException(status_code=404, detail=f"角色不存在: {character_id}")
+    
+    return character
 
 
 @router.get("/", response_model=List[Character], summary="列出所有角色")
@@ -78,8 +98,13 @@ async def list_actors(
     Returns:
         角色列表
     """
-    # TODO: 实现角色列表查询逻辑
-    raise NotImplementedError("角色列表功能尚未实现")
+    # 获取所有角色
+    characters = CharacterService.list(limit=limit)
+    
+    # 过滤：只返回属于该会话的角色
+    characters = [c for c in characters if c.session_id == session_id]
+    
+    return characters
 
 
 @router.put("/{character_id}", response_model=Character, summary="更新角色")
@@ -105,8 +130,24 @@ async def update_actor(
     - 只更新提供的字段
     - tags 如果提供，会完全覆盖原有的 tags
     """
-    # TODO: 实现角色更新逻辑
-    raise NotImplementedError("角色更新功能尚未实现")
+    # 先检查角色是否存在且属于该会话
+    character = CharacterService.get(character_id)
+    if not character or character.session_id != session_id:
+        raise HTTPException(status_code=404, detail=f"角色不存在: {character_id}")
+    
+    # 构建更新字典
+    update_data = {}
+    if name is not None:
+        update_data["name"] = name
+    if tags is not None:
+        update_data["tags"] = tags
+    
+    # 更新角色
+    updated_character = CharacterService.update(character_id, **update_data)
+    if not updated_character:
+        raise HTTPException(status_code=404, detail=f"角色不存在: {character_id}")
+    
+    return updated_character
 
 
 @router.delete("/{character_id}", summary="删除角色")
@@ -124,8 +165,18 @@ async def remove_actor(
     Returns:
         删除结果
     """
-    # TODO: 实现角色删除逻辑
-    raise NotImplementedError("角色删除功能尚未实现")
+    # 先检查角色是否存在且属于该会话
+    character = CharacterService.get(character_id)
+    if not character or character.session_id != session_id:
+        raise HTTPException(status_code=404, detail=f"角色不存在: {character_id}")
+    
+    # 删除角色
+    success = CharacterService.delete(character_id)
+    if not success:
+        raise HTTPException(status_code=404, detail=f"角色不存在: {character_id}")
+    
+    logger.info(f"删除角色: {character_id} (session: {session_id})")
+    return {"message": "角色删除成功", "character_id": character_id}
 
 
 # ==================== 预定义标签查询 ====================

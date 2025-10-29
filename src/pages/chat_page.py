@@ -5,8 +5,12 @@
 """
 
 import flet as ft
+from loguru import logger
+from flet_toast import flet_toast
+from flet_toast.Types import Position
 from components.chat import ChatMessageDisplay, ChatInputArea
 from components.chat.chat_message_display import MessageRole
+from services.llm import get_current_llm_service
 
 
 class ChatPage(ft.Container):
@@ -24,6 +28,12 @@ class ChatPage(ft.Container):
         self.page = page
         self.expand = True
         self.padding = ft.padding.all(10)
+        
+        # 获取 LLM 服务
+        self.llm_service = get_current_llm_service()
+        
+        # 使用固定的会话 ID，以便重启后能加载历史记录
+        self.session_id = "default"
 
         # 创建组件
         self.message_display = ChatMessageDisplay()
@@ -45,6 +55,41 @@ class ChatPage(ft.Container):
             spacing=0,
             expand=True,
         )
+    
+    def did_mount(self):
+        """组件挂载后加载历史记录"""
+        # 加载历史记录（必须在组件挂载到页面之后）
+        self._load_history()
+    
+    def _load_history(self):
+        """加载历史记录并显示在界面上"""
+        try:
+            if self.llm_service.load_history(self.session_id):
+                # 如果成功加载历史记录，显示在界面
+                for msg in self.llm_service.history.messages:
+                    if msg.role == "user":
+                        role = MessageRole.USER
+                    elif msg.role == "assistant":
+                        role = MessageRole.ASSISTANT
+                    else:
+                        role = MessageRole.SYSTEM
+                    
+                    # 调试日志：查看消息结构
+                    logger.debug(f"加载消息 - 角色: {msg.role}, 内容数量: {len(msg.messages)}, 选项: {msg.choices}")
+                    
+                    # 将新格式的消息传递给渲染器（批量加载时不立即更新）
+                    self.message_display.message_list.add_message_with_data(role, msg, update_ui=False)
+                
+                # 批量加载完成后，统一更新 UI
+                try:
+                    self.message_display.message_list.update()
+                except (AssertionError, AttributeError):
+                    # 组件可能还未完全挂载，稍后会自动更新
+                    pass
+                
+                logger.info(f"成功加载 {len(self.llm_service.history.messages)} 条历史消息")
+        except Exception as e:
+            logger.exception(f"加载历史记录失败: {e}")
 
     def _create_header(self) -> ft.Container:
         """
@@ -78,23 +123,23 @@ class ChatPage(ft.Container):
 
     def _handle_clear_chat(self, _e: ft.ControlEvent):
         """处理清空对话"""
+        # 清空 LLM 服务的历史记录
+        self.llm_service.clear_history()
+        
         # 清空消息显示区
         self.message_display.message_list.clear_messages()
-
-        # 添加欢迎消息
-        self.message_display.message_list.add_message(
-            MessageRole.SYSTEM,
-            "对话已清空！我是 NovelPanel AI 助手，有什么可以帮您的吗？",
-        )
+        
+        # 保存清空后的历史记录
+        self.llm_service.save_history(self.session_id)
 
         # 显示通知
         if self.page:
-            self.page.snack_bar = ft.SnackBar(
-                content=ft.Text("对话已清空"),
-                duration=1000,
+            flet_toast.success(
+                page=self.page,
+                message="对话已清空",
+                position=Position.TOP_RIGHT,
+                duration=1
             )
-            self.page.snack_bar.open = True
-            self.page.update()
 
     def _handle_send_message(self, message: str):
         """
@@ -103,92 +148,63 @@ class ChatPage(ft.Container):
         Args:
             message: 用户消息内容
         """
+        # 检查 LLM 服务是否就绪
+        if not self.llm_service.is_ready():
+            # 显示错误消息
+            self.message_display.message_list.add_message(
+                MessageRole.SYSTEM,
+                "❌ LLM 服务未就绪，请在设置页面配置 LLM 参数并确保服务正常启动。"
+            )
+            return
+        
         # 添加用户消息
         self.message_display.message_list.add_message(MessageRole.USER, message)
 
         # 显示正在输入指示器
         typing_indicator = self.message_display.message_list.add_typing_indicator()
 
-        # 使用异步方式模拟 AI 响应
-        import asyncio
-        
-        async def simulate_ai_response():
-            # 模拟思考时间
-            await asyncio.sleep(1.5)
+        # 使用异步方式获取 AI 响应
+        async def get_ai_response():
+            response_text = ""
+            assistant_message = None
             
-            # 在主线程更新 UI
-            if self.page:
-                # 移除指示器
-                self.message_display.message_list.remove_typing_indicator(typing_indicator)
+            try:
+                # 流式获取响应
+                async for chunk in self.llm_service.chat(message, self.session_id):
+                    response_text += chunk
+                    
+                    # 在主线程更新 UI
+                    if self.page:
+                        # 如果是第一个 chunk，移除指示器并创建助手消息
+                        if assistant_message is None:
+                            self.message_display.message_list.remove_typing_indicator(typing_indicator)
+                            assistant_message = self.message_display.message_list.add_message(
+                                MessageRole.ASSISTANT, ""  # 先创建空消息
+                            )
+                        
+                        # 更新助手消息内容（流式输出效果）
+                        assistant_message.update_content(response_text)
                 
-                # 添加 AI 响应
-                response = self._generate_mock_response(message)
-                self.message_display.message_list.add_message(
-                    MessageRole.ASSISTANT, response
-                )
+                # 如果没有收到任何响应
+                if not response_text:
+                    if self.page:
+                        self.message_display.message_list.remove_typing_indicator(typing_indicator)
+                        self.message_display.message_list.add_message(
+                            MessageRole.SYSTEM,
+                            "⚠️ 未收到响应，请检查 LLM 配置和网络连接。"
+                        )
+                        
+            except Exception as e:
+                logger.exception(f"获取 AI 响应失败: {e}")
+                if self.page:
+                    self.message_display.message_list.remove_typing_indicator(typing_indicator)
+                    self.message_display.message_list.add_message(
+                        MessageRole.SYSTEM,
+                        f"❌ 获取响应失败：{e}"
+                    )
         
         # 使用 page 的事件循环运行异步任务
         if self.page:
-            asyncio.create_task(simulate_ai_response())
-
-    def _generate_mock_response(self, user_message: str) -> str:
-        """
-        生成模拟响应（演示用）
-
-        Args:
-            user_message: 用户消息
-
-        Returns:
-            模拟的 AI 响应
-        """
-        # 简单的关键词匹配响应
-        message_lower = user_message.lower()
-
-        if any(keyword in message_lower for keyword in ["角色", "人物", "character"]):
-            return (
-                "关于角色管理，NovelPanel 提供了完整的功能：\n\n"
-                "- **自动提取**：AI 可以从小说中自动识别主要角色\n"
-                "- **标签系统**：为每个角色添加外貌、性格等标签\n"
-                "- **SD 标签**：自动转换为 Stable Diffusion 提示词\n"
-                "- **一致性保证**：确保同一角色在不同图像中保持一致\n\n"
-                "您可以在角色管理页面查看和编辑所有角色信息。"
-            )
-        elif any(
-            keyword in message_lower for keyword in ["提示词", "prompt", "生成"]
-        ):
-            return (
-                "关于提示词生成，有以下建议：\n\n"
-                "## 基础结构\n"
-                "```\n"
-                "质量标签 + 角色描述 + 场景描述 + 风格标签\n"
-                "```\n\n"
-                "## 质量标签推荐\n"
-                "- `masterpiece, best quality, detailed`\n"
-                "- `highly detailed, 4k, sharp focus`\n\n"
-                "## 负面提示词\n"
-                "- `nsfw, low quality, blurry, distorted`\n\n"
-                "系统会根据您的小说内容自动生成优化的提示词！"
-            )
-        elif any(keyword in message_lower for keyword in ["模型", "lora", "checkpoint"]):
-            return (
-                "关于模型选择：\n\n"
-                "**Checkpoint 模型**：\n"
-                "- 动漫风格：建议使用 Anything、NAI 系列\n"
-                "- 真实风格：建议使用 Realistic Vision、DreamShaper\n\n"
-                "**LoRA 模型**：\n"
-                "- 用于强化特定风格或角色特征\n"
-                "- 权重建议：0.6-0.8 之间\n\n"
-                "您可以在模型管理页面浏览所有可用模型！"
-            )
-        else:
-            return (
-                f"收到您的消息：「{user_message}」\n\n"
-                "我是 NovelPanel AI 助手，可以帮助您：\n"
-                "- 分析小说内容和结构\n"
-                "- 管理角色和世界观设定\n"
-                "- 生成和优化 SD 提示词\n"
-                "- 解答使用问题\n\n"
-                "请告诉我更具体的需求，我会尽力帮助您！😊"
-            )
+            self.page.run_task(get_ai_response)
 
 

@@ -13,10 +13,15 @@
 - 所有 value 统一使用纯文本字符串（列表类型用逗号分隔）
 - 支持灵活的查询和聚合
 """
+import uuid
+from datetime import datetime
 from typing import List, Optional, Dict
 from fastapi import APIRouter, Query, HTTPException
+from loguru import logger
+
 from schemas.memory import MemoryEntry
 from constants.memory import memory_description
+from services.db import MemoryService
 
 router = APIRouter(
     prefix="/memory",
@@ -51,8 +56,29 @@ async def create_memory(
     - 自动记录时间戳
     - 如果 description 为空，自动从 constants.memory.memory_description 获取
     """
-    # TODO: 实现记忆创建逻辑
-    raise NotImplementedError("记忆创建功能尚未实现")
+    # 生成唯一记忆ID
+    memory_id = str(uuid.uuid4())
+    
+    # 如果没有提供描述，从预定义字典获取
+    if description is None:
+        description = memory_description.get(key, "")
+    
+    # 创建记忆条目对象
+    entry = MemoryEntry(
+        memory_id=memory_id,
+        session_id=session_id,
+        key=key,
+        value=value,
+        description=description,
+        created_at=datetime.now(),
+        updated_at=datetime.now(),
+    )
+    
+    # 保存到数据库
+    created_entry = MemoryService.create_entry(entry)
+    logger.info(f"创建记忆条目: {key} (session: {session_id})")
+    
+    return created_entry
 
 
 @router.get("/{memory_id}", response_model=MemoryEntry, summary="获取记忆条目")
@@ -70,8 +96,11 @@ async def get_memory(
     Returns:
         记忆条目
     """
-    # TODO: 实现获取记忆逻辑
-    raise NotImplementedError("获取记忆功能尚未实现")
+    entry = MemoryService.get_entry(memory_id)
+    if not entry or entry.session_id != session_id:
+        raise HTTPException(status_code=404, detail=f"记忆条目不存在: {memory_id}")
+    
+    return entry
 
 
 @router.get("/query", response_model=List[MemoryEntry], summary="查询记忆")
@@ -96,8 +125,17 @@ async def query_memories(
     - 按时间排序
     - 支持分页
     """
-    # TODO: 实现记忆查询逻辑
-    raise NotImplementedError("记忆查询功能尚未实现")
+    # 获取所有记忆条目
+    entries = MemoryService.list_entries(limit=limit)
+    
+    # 过滤：只返回属于该会话的记忆
+    entries = [e for e in entries if e.session_id == session_id]
+    
+    # 如果提供了键名过滤，应用过滤
+    if keys:
+        entries = [e for e in entries if e.key in keys]
+    
+    return entries
 
 
 @router.put("/{memory_id}", response_model=MemoryEntry, summary="更新记忆")
@@ -117,8 +155,20 @@ async def update_memory(
     Returns:
         更新后的记忆条目
     """
-    # TODO: 实现记忆更新逻辑
-    raise NotImplementedError("记忆更新功能尚未实现")
+    # 先检查记忆是否存在且属于该会话
+    entry = MemoryService.get_entry(memory_id)
+    if not entry or entry.session_id != session_id:
+        raise HTTPException(status_code=404, detail=f"记忆条目不存在: {memory_id}")
+    
+    # 自动更新时间戳
+    update_data["updated_at"] = datetime.now()
+    
+    # 更新记忆
+    updated_entry = MemoryService.update_entry(memory_id, **update_data)
+    if not updated_entry:
+        raise HTTPException(status_code=404, detail=f"记忆条目不存在: {memory_id}")
+    
+    return updated_entry
 
 
 @router.delete("/{memory_id}", summary="删除记忆")
@@ -136,8 +186,18 @@ async def delete_memory(
     Returns:
         删除结果
     """
-    # TODO: 实现记忆删除逻辑
-    raise NotImplementedError("记忆删除功能尚未实现")
+    # 先检查记忆是否存在且属于该会话
+    entry = MemoryService.get_entry(memory_id)
+    if not entry or entry.session_id != session_id:
+        raise HTTPException(status_code=404, detail=f"记忆条目不存在: {memory_id}")
+    
+    # 删除记忆
+    success = MemoryService.delete_entry(memory_id)
+    if not success:
+        raise HTTPException(status_code=404, detail=f"记忆条目不存在: {memory_id}")
+    
+    logger.info(f"删除记忆条目: {memory_id} (session: {session_id})")
+    return {"message": "记忆条目删除成功", "memory_id": memory_id}
 
 
 # ==================== 预定义键查询 ====================

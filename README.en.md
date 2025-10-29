@@ -1,133 +1,227 @@
 # NovelPanel
 
-[中文文档 (README.md)](README.md)
+English | [中文](README.md)
 
-NovelPanel turns a novel into a comic with “one click.” Paste your novel, the system extracts characters/scenes/plot, generates accurate Stable Diffusion prompts line-by-line, and renders via SD‑Forge. You pick the frames; the app stitches them into a comic. Model management with Civitai samples is supported.
+**Novel Creation & Visualization Tool** with AI chat, image generation, and model management.
 
-- UI: Flet 0.28 (desktop/web)
-- Engine: SD‑Forge / sd-webui
-- Online: Civitai
-- Config: JSON & env vars
-- Python: 3.12+
+## ✨ Core Features
 
-## Features
+### 🤖 AI Creative Assistant
+- **Multi-LLM Support**: OpenAI / xAI (Grok) / Ollama / Anthropic (Claude) / Google (Gemini)
+- **Smart Chat**: Streaming output, persistent conversation history, multi-turn conversations
+- **Tool Router System**: AI can invoke built-in tools (session management, character management, memory, novel reader, drawing, etc.)
+- **Creative Aid**: Plot construction, character development, scene description, prompt generation
+- **Developer Mode**: Customizable system prompts for enhanced creative possibilities
 
-- Model management: scan local SD‑Forge models (Checkpoint/LoRA/VAE), auto-match Civitai metadata and samples (cached locally).
-- SD‑Forge client: list/switch models & options; txt2img with common params.
-- Settings page: visual config for Civitai and SD‑Forge with auto-save.
-- Common components: model cards, sample dialog, editable text, async image.
+### 🎨 Image Generation
+- **Dual Engine**: SD-Forge local generation / Civitai cloud generation
+- **Model Management**:
+  - Auto-scan local models (Checkpoint / LoRA / VAE)
+  - Filter by ecosystem (SD1 / SD2 / SDXL)
+  - Cloud import: Support AIR identifiers (`urn:air:sd1:checkpoint:civitai:123@456`)
+  - Batch sync: Auto-fetch Civitai metadata from SD-Forge
 
-## Quick Start
+### ⚙️ System Architecture
+- **UI Framework**: Flet (supports desktop and web modes)
+- **LLM Framework**: LangChain + LangGraph (tool calling, streaming chat)
+- **API Support**: MCP (Model Context Protocol) service endpoint
+- **Config Management**: JSON files + environment variables + visual settings page
 
-- Requirements: Python 3.12+, SD‑Forge (local/remote), internet for Civitai.
-- Run with uv:
+## 🚀 Quick Start
+
+### Requirements
+- Python 3.12+
+- (Optional) SD-Forge / sd-webui for local image generation
+
+### Installation & Run
 
 ```bash
-uv run flet run          # Desktop
-uv run flet run --web    # Web
+# Using uv (recommended)
+uv run flet run          # Desktop mode
+uv run flet run --web    # Web mode
+
+# Or traditional way
+pip install -r requirements.txt
+flet run src/app.py
 ```
 
-## Configuration
+## ⚙️ Configuration
 
-- Copy and edit: `cp config.example.json config.json`
-- Key fields (also editable from the in-app Settings page):
-  - `sd_forge.base_url` default `http://127.0.0.1:7860`
-  - `sd_forge.home` path to sd-webui-forge root (with models/*)
-  - `civitai.api_token` (optional, for private content)
-- Env override (Windows example):
+### Method 1: Config File
+Copy and edit `config.example.json` → `config.json`
 
-```powershell
-$env:SD_FORGE_SETTINGS__HOME = "C:\Users\<you>\sd-webui-forge"
-$env:SD_FORGE_SETTINGS__BASE_URL = "http://127.0.0.1:7860"
-$env:CIVITAI_SETTINGS__API_TOKEN = "<optional>"
+```json
+{
+  "llm": {
+    "provider": "xai",
+    "api_key": "your-key",
+    "model": "grok-beta"
+  },
+  "sd_forge": {
+    "base_url": "http://127.0.0.1:7860",
+    "home": "C:\\path\\to\\sd-webui-forge"
+  },
+  "civitai": {
+    "api_token": "optional-token"
+  }
+}
 ```
 
-See docs/configuration.md for details.
+### Method 2: Environment Variables (Recommended for secrets)
 
-## Structure (Brief)
+```bash
+# Windows PowerShell
+$env:OPENAI_API_KEY = "sk-..."
+$env:XAI_API_KEY = "xai-..."
+$env:CIVITAI_API_TOKEN = "..."
+
+# Linux/macOS
+export OPENAI_API_KEY="sk-..."
+export XAI_API_KEY="xai-..."
+export CIVITAI_API_TOKEN="..."
+```
+
+**Priority**: Environment Variables > Config File > Defaults
+
+You can also configure visually in the app's "Settings" page with auto-save.
+
+## 📁 Project Structure
 
 ```
 src/
-  main.py, app.py
-  pages/           # model management, settings, chat
-  components/      # model cards/dialogs, editable text, async image
-  routers/         # MCP routers (defined, pending implementation)
-  schemas/         # Pydantic models
-  services/        # Civitai / SD‑Forge / model metadata
-  settings/        # app & service settings
-  constants/, utils/
-docs/
-config.example.json
+├── app.py              # Flet app entry
+├── __mcp__.py          # MCP service endpoint (FastAPI)
+├── pages/              # UI pages
+│   ├── chat_page.py        # AI chat page
+│   ├── model_manage_page.py # Model management page
+│   ├── settings_page.py     # Settings page
+│   └── help_page.py         # Help page
+├── components/         # UI components
+│   ├── chat/               # Chat components (message display, input, sidebar)
+│   ├── model_card/         # Model card component
+│   └── editable_text.py    # Editable text component
+├── services/           # Business logic
+│   ├── llm/                # LLM services (OpenAI/Ollama implementations)
+│   ├── draw/               # Drawing services (SD-Forge/Civitai implementations)
+│   └── model_meta/         # Model metadata (local/Civitai)
+├── routers/            # Tool routers (APIs for LLM to call)
+│   ├── session.py          # Session management
+│   ├── actor.py            # Character management
+│   ├── memory.py           # Memory management
+│   ├── reader.py           # Novel reader
+│   ├── draw.py             # Drawing tools
+│   ├── file.py             # File management
+│   └── llm.py              # LLM auxiliary tools
+├── schemas/            # Data models (Pydantic)
+├── settings/           # Config management (LLM/Civitai/SD-Forge/UI)
+├── constants/          # Constants
+└── utils/              # Utility functions
 ```
 
-## Status
+## 🎯 User Guide
 
-- Done: model management UI, settings page, common components; config mgmt (JSON+Env); Civitai integration; SD‑Forge client (models/options/txt2img).
-- In progress: MCP routers defined with TODO, not implemented yet; storage layer (SQLModel + SQLite).
+### 1. Initial Setup
+Go to "Settings" page and configure necessary parameters:
+- **LLM Settings**: Choose provider, enter API Key, select model
+- **SD-Forge Settings**: Fill in Base URL and installation directory (for local generation)
+- **Civitai Settings**: Enter API Token (optional, for cloud generation and metadata sync)
 
-## Roadmap (Excerpt)
+### 2. AI Chat
+- Default to "Drawing" page (chat interface)
+- Interact with AI assistant for creative advice or guidance
+- AI automatically calls tool functions (e.g., query model list, generate images)
+- Conversation history auto-saves, recoverable after restart
 
-- Phase 1: implement Session/File/Reader/Actor/Memory/Draw routers and storage layer
-- Phase 2: integrate LLM (Grok/Claude) for prompt planning & extraction
-- Phase 3: UI enhancements (session mgmt, chapter tree, character editor, rating/sorting, export)
-- Phase 4: multi-engine (InvokeAI, ComfyUI)
-- Phase 5: advanced features (ControlNet, IPAdapter, templates)
+### 3. Model Management
+- Click "Models" tab to view recognized models
+- **Local Models**: Auto-scan SD-Forge directory
+- **Cloud Import**: Click cloud icon, input AIR identifier
+  - Format: `urn:air:{ecosystem}:{type}:civitai:{model_id}@{version_id}`
+  - Example: `urn:air:sd1:checkpoint:civitai:348620@390021`
+- **Batch Sync**: Settings page → "Import from SD Forge" button
+- **Dual Filters**:
+  - Ecosystem filter: SD1 / SD2 / SDXL
+  - Base model filter: Pony / Illustrious / Standard
+  - Both filters can be applied simultaneously
 
-## Troubleshooting
+### 4. Image Generation
+- Describe requirements in natural language through AI chat
+- AI automatically selects appropriate models and parameters to call drawing tools
+- Or choose drawing backend in settings page (SD-Forge / Civitai)
 
-- Empty model list: check `sd_forge.home` and presence of `models/*`.
-- Civitai fetch fails: verify network; set `civitai.api_token` if needed.
-- Generation errors: ensure SD‑Forge is running and reachable; check sampler and resolution.
+## 🛠️ Development Status
 
-## License & Acknowledgements
+### ✅ Completed
+- **AI Chat System**
+  - Streaming output, multi-turn conversations
+  - Persistent conversation history (JSON)
+  - Tool calling framework (based on LangChain)
+  - Multi-LLM support (OpenAI / xAI / Ollama / Anthropic / Google)
+  - Developer mode and customizable system prompts
+  
+- **Model Management**
+  - Local model scanning (Checkpoint / LoRA / VAE)
+  - Civitai metadata fetching and caching
+  - AIR identifier parsing and import
+  - Batch sync (scan from SD-Forge and fetch metadata)
+  - Ecosystem filtering (SD1 / SD2 / SDXL)
+  - Example image display
+  
+- **UI Pages**
+  - Chat page (message display, input, clear conversation)
+  - Model management page (card display, filtering, import, clear)
+  - Settings page (visual config, auto-save, re-initialize)
+  - Help page
+  
+- **Configuration Management**
+  - JSON config files + environment variables
+  - Visual settings interface
+  - Auto-save and load
 
-- License: see LICENSE
-- Acknowledgements: Flet, Stable Diffusion WebUI / SD‑Forge, Civitai
-- **Router Definition**: Use FastAPI's `APIRouter`, each router file creates an independent router instance
-- **Async Functions**: All route handlers use `async def`
-- **Type Annotations**: Complete parameter and return type annotations using Pydantic models
-- **Error Handling**: Use FastAPI's HTTPException and Pydantic ValidationError
+### 🚧 In Progress / To Be Implemented
+- **Tool Router Implementation** (API framework complete, partial functionality pending)
+  - ✅ Session/Actor/Memory/Reader/Draw/File router definitions
+  - ⏳ Concrete implementations (parse_novel, generate, etc.)
+  
+- **Drawing Functionality**
+  - ✅ SD-Forge service base implementation
+  - ⏳ Complete drawing workflow (parameter config, batch generation)
+  
+- **Novel Reader**
+  - ✅ Router definitions
+  - ⏳ Parsing, chapter management, summary generation
 
-### Testing
+## 🐛 Troubleshooting
 
-```bash
-# Currently runnable: Model management UI
-uv run flet run
+### LLM Service Not Ready
+- Check if API Key is configured in settings page
+- Verify Base URL is correct (especially for Ollama local service)
+- Click "Reinitialize LLM" button to retry connection
+- Check log output (console) for specific errors
 
-# After MCP implementation: Complete workflow
-python -m src.routers.session  # Test session management
-```
+### Empty Model List
+- Check if SD-Forge installation directory path is correct
+- Ensure `models/Stable-diffusion/` and `models/Lora/` folders exist
+- Click refresh button on models page
 
-### Adding New Features
+### Civitai Import Failed
+- Check network connection (requires access to civitai.com)
+- Verify AIR format: must include `@{version_id}` part
+- Correct format: `urn:air:sd1:checkpoint:civitai:348620@390021`
+- For batch sync, ensure SD-Forge directory is configured
 
-1. Define data models in `schemas/`
-2. Define business interfaces in `routers/`
-3. Implement logic in `services/`
-4. Call Router interfaces from UI layer
+### Conversation History Lost
+- Conversation history saved in `storage/data/chat_history/default.json`
+- For backup, copy this file
+- Cannot recover after clearing conversation, use with caution
 
-### Notes
+## 📄 License
 
-- First run is slow: `ModelMetaService.flush*` downloads metadata and sample images
-- Config file `config.json` is auto-created on first config save
-- MCP Router interfaces are defined but not implemented; calls raise `NotImplementedError`
-- Look for `# TODO:` markers in code to understand pending features
-- MCP Router requires LLM API configuration (Grok/Claude) for AI features (Phase 2)
-- Image generation requires SD-Forge running at configured address (default `http://127.0.0.1:7860`)
+See [LICENSE](LICENSE)
 
-### Code Quality
+## 🙏 Acknowledgements
 
-- ✅ All files include complete docstring comments
-- ✅ All functions have parameter and return value descriptions
-- ✅ Unimplemented features marked with `# TODO:` and `raise NotImplementedError()`
-- ✅ Code quality checked with pylint
-- ✅ Follows PEP 8 code style
-
-## License
-
-See LICENSE.
-
-## Acknowledgements
-
-- Flet
-- Stable Diffusion WebUI / SD‑Forge
-- Civitai
+- [Flet](https://flet.dev/) - Modern Python UI framework
+- [Stable Diffusion WebUI](https://github.com/AUTOMATIC1111/stable-diffusion-webui) / [SD-Forge](https://github.com/lllyasviel/stable-diffusion-webui-forge) - Image generation engine
+- [Civitai](https://civitai.com/) - AI model community
+- [LangChain](https://www.langchain.com/) - LLM application framework

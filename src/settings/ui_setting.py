@@ -1,11 +1,8 @@
 """
 UI 设置
 """
-from typing import Optional, Literal
+from typing import Optional
 from pydantic import BaseModel, Field
-
-
-BaseModelType = Literal["SD 1.5", "SDXL 1.0", "Pony", "Illustrious"]
 
 
 class UiSettings(BaseModel):
@@ -13,7 +10,12 @@ class UiSettings(BaseModel):
     
     包含模型管理页面等 UI 的筛选与显示相关选项。
     """
-    base_model_filter: Optional[BaseModelType] = Field(
+    ecosystem_filter: Optional[str] = Field(
         default=None,
-        description="基础模型过滤器（None 表示显示所有模型）"
+        description="生态系统过滤器（None 表示显示所有模型）。可选值：sd1, sd2, sdxl"
+    )
+    
+    base_model_filter: Optional[str] = Field(
+        default=None,
+        description="基础模型过滤器（None 表示显示所有模型）。可选值：pony, illustrious, standard 等"
     )
