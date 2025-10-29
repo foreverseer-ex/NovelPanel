@@ -37,18 +37,20 @@
 
 ```bash
 # 使用 uv（推荐）
-uv run flet run          # 桌面模式
-uv run flet run --web    # Web 模式
+# 第一次使用先同步依赖（创建本地虚拟环境）
+uv sync
 
-# 或使用传统方式
-pip install -r requirements.txt
-flet run src/app.py
+# 运行 Flet（桌面模式）
+uv run flet run
+
+# 运行 Flet（Web 模式）
+uv run flet run --web
 ```
 
 ## ⚙️ 配置
 
 ### 方式 1：配置文件
-复制并编辑 `config.example.json` → `config.json`
+在项目根目录新建 `config.json`（可选，亦可仅使用环境变量）
 
 ```json
 {
@@ -118,6 +120,21 @@ src/
 └── utils/              # 工具函数
 ```
 
+## 🔌 启动 MCP 服务
+
+使用 FastAPI + fastapi-mcp 提供 MCP 端点。
+
+```bash
+# 开发模式（自动重载）
+uv run uvicorn src.__mcp__:app --reload --host 127.0.0.1 --port 8000
+
+# 生产模式（示例）
+uv run uvicorn src.__mcp__:app --host 0.0.0.0 --port 8000
+```
+
+- 文档地址：`http://127.0.0.1:8000/docs`
+- MCP 端点：`http://127.0.0.1:8000/mcp`
+
 ## 🎯 使用指南
 
 ### 1. 首次配置
@@ -148,6 +165,20 @@ src/
 - 通过 AI 对话自然语言描述需求
 - AI 会自动选择合适的模型和参数调用绘图工具
 - 或在设置页面选择绘图后端（SD-Forge / Civitai）
+
+## 💾 数据与存储路径
+
+应用的默认数据目录位于 `storage/data`，可通过环境变量覆盖：
+
+- `FLET_APP_STORAGE_DATA`：数据目录（默认：`storage/data`）
+- `FLET_APP_STORAGE_TEMP`：临时目录（默认：`storage/temp`）
+
+目录结构与重要文件：
+
+- 数据库：`storage/data/database.db`
+- 对话历史：`storage/data/chat_history/`
+- 模型元数据：`storage/data/model_meta/`（含 `checkpoint/` 与 `lora/`）
+- 项目文件：`storage/data/projects/`
 
 ## 🛠️ 开发状态
 

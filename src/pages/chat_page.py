@@ -134,7 +134,7 @@ class ChatPage(ft.Container):
 
         # 显示通知
         if self.page:
-            flet_toast.success(
+            flet_toast.sucess(
                 page=self.page,
                 message="对话已清空",
                 position=Position.TOP_RIGHT,

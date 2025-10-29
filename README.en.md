@@ -37,18 +37,20 @@ English | [中文](README.md)
 
 ```bash
 # Using uv (recommended)
-uv run flet run          # Desktop mode
-uv run flet run --web    # Web mode
+# First time: sync dependencies (create local virtual env)
+uv sync
 
-# Or traditional way
-pip install -r requirements.txt
-flet run src/app.py
+# Run Flet (Desktop mode)
+uv run flet run
+
+# Run Flet (Web mode)
+uv run flet run --web
 ```
 
 ## ⚙️ Configuration
 
 ### Method 1: Config File
-Copy and edit `config.example.json` → `config.json`
+Create `config.json` in the project root (optional; you can also rely on environment variables only)
 
 ```json
 {
@@ -148,6 +150,30 @@ Go to "Settings" page and configure necessary parameters:
 - Describe requirements in natural language through AI chat
 - AI automatically selects appropriate models and parameters to call drawing tools
 - Or choose drawing backend in settings page (SD-Forge / Civitai)
+
+## 💾 Data & Storage Paths
+
+Default data directory is `storage/data`. You can override via environment variables:
+
+- `FLET_APP_STORAGE_DATA`: data directory (default: `storage/data`)
+- `FLET_APP_STORAGE_TEMP`: temp directory (default: `storage/temp`)
+
+Structure & important files:
+
+- Database: `storage/data/database.db`
+- Chat history: `storage/data/chat_history/`
+- Model metadata: `storage/data/model_meta/` (with `checkpoint/` and `lora/`)
+- Projects: `storage/data/projects/`
+
+## ✅ Testing & Code Quality
+
+```bash
+# Run tests
+uv run pytest -q
+
+# Lint (pylint configured via pyproject)
+uv run pylint src
+```
 
 ## 🛠️ Development Status
 

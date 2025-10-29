@@ -123,8 +123,6 @@ class ModelDetailDialog(ft.AlertDialog):
                 scroll=ft.ScrollMode.AUTO,
             )
         else:
-            # 方图或高图：使用水平布局（左图右详情）
-            # 重新构建图片行，顺序为：向左按钮、图片、详情、向右按钮
             image_with_left_nav = ft.Row(
                 controls=[
                     self.prev_button,
@@ -136,25 +134,84 @@ class ModelDetailDialog(ft.AlertDialog):
                 spacing=10,
                 vertical_alignment=ft.CrossAxisAlignment.CENTER,
             )
-            
+
+            def _make_item_vertical(label: str, value: str) -> ft.Container:
+                def _copy_to_clipboard(_e):
+                    if self.page:
+                        self.page.set_clipboard(value)
+                        display_value = value if len(value) <= 50 else f"{value[:47]}..."
+                        flet_toast.sucess(
+                            page=self.page,
+                            message=f"✅ 已复制: {display_value}",
+                            position=Position.TOP_RIGHT,
+                            duration=2
+                        )
+                return ft.Container(
+                    content=ft.Column(
+                        controls=[
+                            ft.Container(
+                                content=ft.Text(f"{label}:", weight=ft.FontWeight.BOLD),
+                                on_click=_copy_to_clipboard,
+                                tooltip=f"点击复制 {label}",
+                                padding=ft.padding.symmetric(horizontal=0, vertical=2),
+                            ),
+                            ft.Container(
+                                content=ft.Text(value if len(value) <= 200 else value[:197] + "..."),
+                                on_click=_copy_to_clipboard,
+                                tooltip="点击复制（完整内容）" if len(value) > 50 else "点击复制",
+                                padding=ft.padding.symmetric(horizontal=5, vertical=2),
+                            ),
+                        ],
+                        tight=True,
+                        spacing=2,
+                    )
+                )
+
+            meta = self.model_meta
+            vertical_items = [
+                _make_item_vertical("版本名称", meta.version_name),
+                _make_item_vertical("模型类型", meta.type),
+                _make_item_vertical("生态系统", meta.ecosystem.upper()),
+                _make_item_vertical("基础模型", meta.base_model if meta.base_model else "未知"),
+                _make_item_vertical("AIR 标识符", meta.air),
+            ]
+
+            desc_editable = EditableText(
+                value=meta.desc,
+                placeholder="点击添加说明...",
+                on_submit=lambda new_desc: self._handle_desc_update(new_desc),
+                multiline=False,
+            )
+            vertical_items.append(
+                ft.Container(
+                    content=ft.Column(
+                        controls=[
+                            ft.Text("说明:", weight=ft.FontWeight.BOLD),
+                            desc_editable,
+                        ],
+                        tight=True,
+                        spacing=2,
+                    )
+                )
+            )
+
+            detail_container = ft.Container(
+                content=ft.Column(
+                    controls=vertical_items,
+                    tight=True,
+                    spacing=SPACING_SMALL,
+                    scroll=ft.ScrollMode.AUTO,
+                ),
+                expand=True,
+                padding=ft.padding.symmetric(horizontal=SPACING_SMALL),
+                width=DETAIL_INFO_MIN_WIDTH,
+            )
+
             self.content = ft.Row(
                 controls=[
-                    # 左侧：向左按钮 + 图片
                     image_with_left_nav,
                     ft.VerticalDivider(width=1),
-                    # 中间：详情信息（可滚动）
-                    ft.Container(
-                        content=ft.Column(
-                            controls=info_rows,
-                            tight=True,
-                            spacing=SPACING_SMALL,
-                            scroll=ft.ScrollMode.AUTO,
-                        ),
-                        expand=True,
-                        padding=ft.padding.symmetric(horizontal=SPACING_SMALL),
-                        width=DETAIL_INFO_MIN_WIDTH,  # 设置最小宽度
-                    ),
-                    # 右侧：向右按钮
+                    detail_container,
                     self.next_button,
                 ],
                 spacing=SPACING_SMALL,
@@ -184,7 +241,7 @@ class ModelDetailDialog(ft.AlertDialog):
                     self.page.set_clipboard(value)
                     # 如果值太长，只显示前 50 个字符
                     display_value = value if len(value) <= 50 else f"{value[:47]}..."
-                    flet_toast.success(
+                    flet_toast.sucess(
                         page=self.page,
                         message=f"✅ 已复制: {display_value}",
                         position=Position.TOP_RIGHT,
@@ -286,7 +343,7 @@ class ModelDetailDialog(ft.AlertDialog):
         
         # 显示提示（可选）
         if self.page:
-            flet_toast.success(
+            flet_toast.sucess(
                 page=self.page,
                 message="说明已保存",
                 position=Position.TOP_RIGHT,
@@ -356,26 +413,95 @@ class ModelDetailDialog(ft.AlertDialog):
                 scroll=ft.ScrollMode.AUTO,
             )
         else:
-            # 方图或高图：使用水平布局（左图右详情）
+            image_with_left_nav = ft.Row(
+                controls=[
+                    self.prev_button,
+                    ft.Container(
+                        content=self.preview_image_control,
+                        width=LARGE_IMAGE_WIDTH,
+                    ),
+                ],
+                spacing=10,
+                vertical_alignment=ft.CrossAxisAlignment.CENTER,
+            )
+
+            def _make_item_vertical(label: str, value: str) -> ft.Container:
+                def _copy_to_clipboard(_e):
+                    if self.page:
+                        self.page.set_clipboard(value)
+                        display_value = value if len(value) <= 50 else f"{value[:47]}..."
+                        flet_toast.sucess(
+                            page=self.page,
+                            message=f"✅ 已复制: {display_value}",
+                            position=Position.TOP_RIGHT,
+                            duration=2
+                        )
+                return ft.Container(
+                    content=ft.Column(
+                        controls=[
+                            ft.Container(
+                                content=ft.Text(f"{label}:", weight=ft.FontWeight.BOLD),
+                                on_click=_copy_to_clipboard,
+                                tooltip=f"点击复制 {label}",
+                                padding=ft.padding.symmetric(horizontal=0, vertical=2),
+                            ),
+                            ft.Container(
+                                content=ft.Text(value if len(value) <= 200 else value[:197] + "..."),
+                                on_click=_copy_to_clipboard,
+                                tooltip="点击复制（完整内容）" if len(value) > 50 else "点击复制",
+                                padding=ft.padding.symmetric(horizontal=5, vertical=2),
+                            ),
+                        ],
+                        tight=True,
+                        spacing=2,
+                    )
+                )
+
+            meta = self.model_meta
+            vertical_items = [
+                _make_item_vertical("版本名称", meta.version_name),
+                _make_item_vertical("模型类型", meta.type),
+                _make_item_vertical("生态系统", meta.ecosystem.upper()),
+                _make_item_vertical("基础模型", meta.base_model if meta.base_model else "未知"),
+                _make_item_vertical("AIR 标识符", meta.air),
+            ]
+
+            desc_editable = EditableText(
+                value=meta.desc,
+                placeholder="点击添加说明...",
+                on_submit=lambda new_desc: self._handle_desc_update(new_desc),
+                multiline=False,
+            )
+            vertical_items.append(
+                ft.Container(
+                    content=ft.Column(
+                        controls=[
+                            ft.Text("说明:", weight=ft.FontWeight.BOLD),
+                            desc_editable,
+                        ],
+                        tight=True,
+                        spacing=2,
+                    )
+                )
+            )
+
+            detail_container = ft.Container(
+                content=ft.Column(
+                    controls=vertical_items,
+                    tight=True,
+                    spacing=SPACING_SMALL,
+                    scroll=ft.ScrollMode.AUTO,
+                ),
+                expand=True,
+                padding=ft.padding.symmetric(horizontal=SPACING_SMALL),
+            )
+
             self.content = ft.Row(
                 controls=[
-                    # 左侧：图片（带导航按钮）
-                    ft.Container(
-                        content=self.image_row,
-                        width=LARGE_IMAGE_WIDTH + 160,
-                    ),
+                    image_with_left_nav,
                     ft.VerticalDivider(width=1),
-                    # 右侧：详情信息（可滚动）
-                    ft.Container(
-                        content=ft.Column(
-                            controls=info_rows,
-                            tight=True,
-                            spacing=SPACING_SMALL,
-                            scroll=ft.ScrollMode.AUTO,
-                        ),
-                        expand=True,
-                        padding=ft.padding.only(left=SPACING_SMALL),
-                    ),
+                    detail_container,
+                    self.next_button,
                 ],
                 spacing=SPACING_SMALL,
                 expand=True,

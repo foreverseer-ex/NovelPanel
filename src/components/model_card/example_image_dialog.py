@@ -181,7 +181,7 @@ class ExampleImageDialog(ft.AlertDialog):
                         self.page.set_clipboard(value)
                         # 如果值太长，只显示前 50 个字符
                         display_value = value if len(value) <= 50 else f"{value[:47]}..."
-                        flet_toast.success(
+                        flet_toast.sucess(
                             page=self.page,
                             message=f"✅ 已复制: {display_value}",
                             position=Position.TOP_RIGHT,
@@ -248,7 +248,7 @@ class ExampleImageDialog(ft.AlertDialog):
                 )
             else:
                 # 方图或高图：使用水平布局（左图右详情）
-                # 重新构建图片行，顺序为：向左按钮、图片、详情、向右按钮
+                # 构建“左侧：向左按钮 + 图片”
                 image_with_left_nav = ft.Row(
                     controls=[
                         prev_button,
@@ -260,25 +260,65 @@ class ExampleImageDialog(ft.AlertDialog):
                     spacing=10,
                     vertical_alignment=ft.CrossAxisAlignment.CENTER,
                 )
-                
+
+                # 详情区：每个字段上下两行（标题在上，值在下），均可点击复制
+                def _make_item_vertical(label: str, value: str) -> ft.Container:
+                    def _copy_to_clipboard(_e):
+                        if self.page:
+                            self.page.set_clipboard(value)
+                            display_value = value if len(value) <= 50 else f"{value[:47]}..."
+                            flet_toast.sucess(
+                                page=self.page,
+                                message=f"✅ 已复制: {display_value}",
+                                position=Position.TOP_RIGHT,
+                                duration=2
+                            )
+                    return ft.Container(
+                        content=ft.Column(
+                            controls=[
+                                ft.Container(
+                                    content=ft.Text(f"{label}:", weight=ft.FontWeight.BOLD),
+                                    on_click=_copy_to_clipboard,
+                                    tooltip=f"点击复制 {label}",
+                                    padding=ft.padding.symmetric(horizontal=0, vertical=2),
+                                ),
+                                ft.Container(
+                                    content=ft.Text(value if len(value) <= 200 else value[:197] + "..."),
+                                    on_click=_copy_to_clipboard,
+                                    tooltip="点击复制（完整内容）" if len(value) > 50 else "点击复制",
+                                    padding=ft.padding.symmetric(horizontal=5, vertical=2),
+                                ),
+                            ],
+                            tight=True,
+                            spacing=2,
+                        )
+                    )
+
+                param_items_vertical = [
+                    _make_item_vertical("基础模型", args.model),
+                    _make_item_vertical("正面提示词", args.prompt if args.prompt else "无"),
+                    _make_item_vertical("负面提示词", args.negative_prompt if args.negative_prompt else "无"),
+                    _make_item_vertical(
+                        "生成参数",
+                        f"CFG: {args.cfg_scale} | 采样器: {args.sampler} | 步数: {args.steps} | 种子: {args.seed} | 尺寸: {args.width}×{args.height}"
+                    ),
+                ]
+
                 self.content_container.content = ft.Row(
                     controls=[
-                        # 左侧：向左按钮 + 图片
                         image_with_left_nav,
                         ft.VerticalDivider(width=1),
-                        # 中间：详情信息（可滚动）
                         ft.Container(
                             content=ft.Column(
-                                controls=param_rows,
+                                controls=param_items_vertical,
                                 tight=True,
                                 spacing=SPACING_SMALL,
                                 scroll=ft.ScrollMode.AUTO,
                             ),
                             expand=True,
                             padding=ft.padding.symmetric(horizontal=SPACING_SMALL),
-                            width=DETAIL_INFO_MIN_WIDTH,  # 设置最小宽度
+                            width=DETAIL_INFO_MIN_WIDTH,
                         ),
-                        # 右侧：向右按钮
                         next_button,
                     ],
                     expand=True,
@@ -337,7 +377,7 @@ class ExampleImageDialog(ft.AlertDialog):
                         self.page.set_clipboard(value)
                         # 如果值太长，只显示前 50 个字符
                         display_value = value if len(value) <= 50 else f"{value[:47]}..."
-                        flet_toast.success(
+                        flet_toast.sucess(
                             page=self.page,
                             message=f"✅ 已复制: {display_value}",
                             position=Position.TOP_RIGHT,
@@ -404,25 +444,38 @@ class ExampleImageDialog(ft.AlertDialog):
                 )
             else:
                 # 方图或高图：使用水平布局（左图右详情）
+                # 重新构建“左侧：向左按钮 + 图片”
+                image_with_left_nav = ft.Row(
+                    controls=[
+                        self.image_row.controls[0],  # prev_button
+                        ft.Container(
+                            content=self.large_image_control,
+                            width=LARGE_IMAGE_WIDTH,
+                        ),
+                    ],
+                    spacing=10,
+                    vertical_alignment=ft.CrossAxisAlignment.CENTER,
+                )
+
+                # 右侧详情
+                detail_container = ft.Container(
+                    content=ft.Column(
+                        controls=param_rows,
+                        tight=True,
+                        spacing=SPACING_SMALL,
+                        scroll=ft.ScrollMode.AUTO,
+                    ),
+                    expand=True,
+                    padding=ft.padding.only(left=SPACING_SMALL),
+                )
+
+                # 总布局：左按钮，图片，详情，右按钮
                 self.content_container.content = ft.Row(
                     controls=[
-                        # 左侧：图片（带导航按钮）
-                        ft.Container(
-                            content=self.image_row,
-                            width=LARGE_IMAGE_WIDTH + 160,
-                        ),
+                        image_with_left_nav,
                         ft.VerticalDivider(width=1),
-                        # 右侧：详情信息（可滚动）
-                        ft.Container(
-                            content=ft.Column(
-                                controls=param_rows,
-                                tight=True,
-                                spacing=SPACING_SMALL,
-                                scroll=ft.ScrollMode.AUTO,
-                            ),
-                            expand=True,
-                            padding=ft.padding.only(left=SPACING_SMALL),
-                        ),
+                        detail_container,
+                        self.image_row.controls[2],  # next_button
                     ],
                     expand=True,
                     spacing=SPACING_SMALL,

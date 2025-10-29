@@ -342,7 +342,7 @@ class ModelManagePage(ft.Column):
             
             # 根据颜色判断类型
             if bgcolor == ft.Colors.GREEN_700:
-                flet_toast.success(
+                flet_toast.sucess(
                     page=self.page,
                     message=message,
                     position=Position.TOP_RIGHT,
@@ -365,7 +365,7 @@ class ModelManagePage(ft.Column):
                 )
             else:
                 # 默认为 success
-                flet_toast.success(
+                flet_toast.sucess(
                     page=self.page,
                     message=message,
                     position=Position.TOP_RIGHT,

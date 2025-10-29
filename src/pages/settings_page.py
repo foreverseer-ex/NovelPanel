@@ -8,6 +8,7 @@ import flet as ft
 from typing import Any
 from flet_toast import flet_toast
 from flet_toast.Types import Position
+from loguru import logger
 from settings import app_settings
 from constants.llm import (
     LlmProvider,
@@ -615,7 +616,7 @@ class SettingsPage(ft.Column):
             
             # 根据颜色判断类型
             if bgcolor == ft.Colors.GREEN_700:
-                flet_toast.success(
+                flet_toast.sucess(
                     page=self.page,
                     message=message,
                     position=Position.TOP_RIGHT,
@@ -638,7 +639,7 @@ class SettingsPage(ft.Column):
                 )
             else:
                 # 默认为 success
-                flet_toast.success(
+                flet_toast.sucess(
                     page=self.page,
                     message=message,
                     position=Position.TOP_RIGHT,
