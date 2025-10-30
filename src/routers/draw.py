@@ -6,9 +6,13 @@
 from typing import Optional, Dict, Any, List
 from fastapi import APIRouter, HTTPException
 from fastapi.responses import FileResponse
+from pathlib import Path
+import httpx
 
 from services.db import JobService, BatchJobService
-from schemas.draw import Job, BatchJob
+from schemas.draw import Job, BatchJob, DrawArgs
+from services.draw.sd_forge import SdForgeDrawService, sd_forge_draw_service
+from utils.path import project_home
 
 
 router = APIRouter(
@@ -34,8 +38,10 @@ async def get_loras(session_id: str) -> Dict[str, Any]:
     实现要点：
     - 直接调用 sd_forge_service.get_loras()
     """
-    # TODO: 实现获取 LoRA 列表逻辑
-    raise NotImplementedError("获取 LoRA 列表功能尚未实现")
+    try:
+        return SdForgeDrawService._get_loras()  # pylint: disable=protected-access
+    except httpx.HTTPError as e:
+        raise HTTPException(status_code=502, detail=f"SD-Forge 连接失败: {e}") from e
 
 
 @router.get("/sd-models", summary="获取 SD 模型列表")
@@ -52,8 +58,10 @@ async def get_sd_models(session_id: str) -> Dict[str, Any]:
     实现要点：
     - 直接调用 sd_forge_service.get_sd_models()
     """
-    # TODO: 实现获取 SD 模型列表逻辑
-    raise NotImplementedError("获取 SD 模型列表功能尚未实现")
+    try:
+        return SdForgeDrawService._get_sd_models()  # pylint: disable=protected-access
+    except httpx.HTTPError as e:
+        raise HTTPException(status_code=502, detail=f"SD-Forge 连接失败: {e}") from e
 
 
 @router.get("/options", summary="获取 SD 选项")
@@ -70,8 +78,10 @@ async def get_options(session_id: str) -> Dict[str, Any]:
     实现要点：
     - 直接调用 sd_forge_service.get_options()
     """
-    # TODO: 实现获取 SD 选项逻辑
-    raise NotImplementedError("获取 SD 选项功能尚未实现")
+    try:
+        return SdForgeDrawService._get_options()  # pylint: disable=protected-access
+    except httpx.HTTPError as e:
+        raise HTTPException(status_code=502, detail=f"SD-Forge 连接失败: {e}") from e
 
 
 @router.post("/options", summary="设置 SD 选项")
@@ -94,8 +104,11 @@ async def set_options(
     实现要点：
     - 直接调用 sd_forge_service.set_options()
     """
-    # TODO: 实现设置 SD 选项逻辑
-    raise NotImplementedError("设置 SD 选项功能尚未实现")
+    try:
+        SdForgeDrawService._set_options(sd_model_checkpoint=sd_model_checkpoint, sd_vae=sd_vae)  # pylint: disable=protected-access
+        return {"ok": True}
+    except httpx.HTTPError as e:
+        raise HTTPException(status_code=502, detail=f"SD-Forge 连接失败: {e}") from e
 
 
 # ==================== 图像生成 ====================
@@ -104,19 +117,20 @@ async def set_options(
 async def generate(
     session_id: str,
     batch_id: str,
+    model: str,
     prompt: str,
     negative_prompt: str = "",
     loras: Optional[Dict[str, float]] = None,
     styles: Optional[List[str]] = None,
     seed: int = -1,
     sampler_name: str = "DPM++ 2M Karras",
-    batch_size: int = 1,
-    n_iter: int = 1,
     steps: int = 30,
     cfg_scale: float = 7.0,
     width: int = 1024,
     height: int = 1024,
-    save_images: bool = True
+    clip_skip: Optional[int] = None,
+    vae: Optional[str] = None,
+    save_images: bool = True,
 ) -> Dict[str, Any]:
     """
     文生图。
@@ -146,8 +160,38 @@ async def generate(
     - 保存图像到 storage/sessions/{session_id}/batches/{batch_id}/
     - 图像命名：0.png, 1.png, ...（根据 batch_size）
     """
-    # TODO: 实现文生图逻辑
-    raise NotImplementedError("文生图功能尚未实现")
+    try:
+        args = DrawArgs(
+            model=model,
+            prompt=prompt,
+            negative_prompt=negative_prompt or "",
+            steps=steps,
+            cfg_scale=cfg_scale,
+            sampler=sampler_name,
+            seed=seed,
+            width=width,
+            height=height,
+            clip_skip=clip_skip,
+            vae=vae,
+            loras=loras or {},
+        )
+        job_id = sd_forge_draw_service.draw(args)
+        result_dir: Path = project_home / session_id / "batches" / batch_id
+        result_dir.mkdir(parents=True, exist_ok=True)
+        if save_images:
+            out_path = result_dir / "0.png"
+            sd_forge_draw_service.save_image(job_id, out_path)
+        return {
+            "job_id": job_id,
+            "session_id": session_id,
+            "batch_id": batch_id,
+            "saved": bool(save_images),
+            "path": str(result_dir / "0.png") if save_images else None,
+        }
+    except httpx.HTTPError as e:
+        raise HTTPException(status_code=502, detail=f"SD-Forge 连接失败: {e}") from e
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e)) from e
 
 
 @router.get("/image", response_class=FileResponse, summary="获取生成的图像")
@@ -172,8 +216,10 @@ async def get_image(
     - 设置正确的 Content-Type
     - 如果文件不存在，返回404
     """
-    # TODO: 实现获取图像逻辑
-    raise NotImplementedError("获取图像功能尚未实现")
+    file_path = project_home / session_id / "batches" / batch_id / f"{index}.png"
+    if not file_path.exists():
+        raise HTTPException(status_code=404, detail="图像不存在")
+    return FileResponse(path=str(file_path), media_type="image/png")
 
 
 # ==================== Job 管理 ====================

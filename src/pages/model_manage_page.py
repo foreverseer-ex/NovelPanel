@@ -8,6 +8,7 @@ import flet as ft
 from loguru import logger
 from flet_toast import flet_toast
 from flet_toast.Types import Position
+import httpx
 
 from components.model_card import ModelCard
 from constants.model_meta import Ecosystem, BaseModel
@@ -112,7 +113,10 @@ class ModelManagePage(ft.Column):
                 
             except Exception as e:
                 logger.exception(f"导入失败: {e}")
-                self._show_toast(f"❌ 导入失败: {str(e)}", ft.Colors.RED_700)
+                if isinstance(e, httpx.ConnectTimeout):
+                    self._show_toast("❌ 下载超时：请检查网络/代理，或在设置中提高 Civitai 超时", ft.Colors.RED_700)
+                else:
+                    self._show_toast(f"❌ 导入失败: {str(e)}", ft.Colors.RED_700)
 
         # 保存 do_import_from_civitai 为实例方法
         self._do_import_from_civitai = do_import_from_civitai
@@ -280,24 +284,35 @@ class ModelManagePage(ft.Column):
                 
                 # 显示失败提示
                 current = success_count + failed_count
-                self._show_toast(
-                    f"❌ {current}/{total_count} 失败：{air_str.split(':')[-1][:20]}...",
-                    ft.Colors.RED_700,
-                    duration=1500
-                )
+                if isinstance(e, httpx.ConnectTimeout):
+                    self._show_toast(
+                        f"❌ {current}/{total_count} 超时：请检查网络/代理，或提高超时",
+                        ft.Colors.RED_700,
+                        duration=2000
+                    )
+                else:
+                    self._show_toast(
+                        f"❌ {current}/{total_count} 失败：{air_str.split(':')[-1][:20]}...",
+                        ft.Colors.RED_700,
+                        duration=1500
+                    )
                 continue
         
         # 所有导入完成后刷新页面
         if self.page:
-            self._render_models()
+            # 确保在主线程更新UI
+            def _update_ui():
+                self._render_models()
+                # 显示结果
+                if failed_count == 0:
+                    self._show_toast(f"✅ 成功导入 {success_count} 个模型", ft.Colors.GREEN_700)
+                elif success_count == 0:
+                    self._show_toast(f"❌ 全部导入失败（{failed_count} 个）", ft.Colors.RED_700)
+                else:
+                    self._show_toast(f"⚠️ 成功 {success_count} 个，失败 {failed_count} 个", ft.Colors.ORANGE_700)
             
-            # 显示结果
-            if failed_count == 0:
-                self._show_toast(f"✅ 成功导入 {success_count} 个模型", ft.Colors.GREEN_700)
-            elif success_count == 0:
-                self._show_toast(f"❌ 全部导入失败（{failed_count} 个）", ft.Colors.RED_700)
-            else:
-                self._show_toast(f"⚠️ 成功 {success_count} 个，失败 {failed_count} 个", ft.Colors.ORANGE_700)
+            # 在主线程执行UI更新
+            self.page.run_task(_update_ui)
     
     def _on_export_all_air(self, _: ft.ControlEvent):
         """导出所有模型的 AIR 到剪贴板"""
@@ -630,7 +645,7 @@ class ImportModelDialog(ft.AlertDialog):
             page: Flet Page 对象（用于读取剪贴板）
             on_import: 导入回调函数，接收参数 (air_list: list[str])
         """
-        self.page = page
+        self.host_page = page
         self.on_import = on_import
         
         # 创建输入字段
@@ -670,7 +685,7 @@ class ImportModelDialog(ft.AlertDialog):
             
             # 读取剪贴板并尝试解析 AIR（支持多行）
             try:
-                clipboard_text = self.page.get_clipboard()
+                clipboard_text = self.host_page.get_clipboard() if self.host_page else None
                 if clipboard_text:
                     clipboard_text = clipboard_text.strip()
                     logger.debug(f"剪贴板内容: {clipboard_text}")
@@ -703,7 +718,7 @@ class ImportModelDialog(ft.AlertDialog):
                         logger.debug("剪贴板内容不包含有效的 AIR")
                 
             except Exception as e:
-                logger.warning(f"读取剪贴板失败: {e}")
+                logger.exception(e)
             
         except Exception as e:
             logger.exception(f"加载剪贴板内容失败: {e}")

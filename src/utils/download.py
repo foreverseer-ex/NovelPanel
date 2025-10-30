@@ -75,6 +75,9 @@ async def download_file(
             
             logger.debug(f"下载文件成功: {save_path.name}")
             return True
+    except httpx.ConnectTimeout as e:
+        logger.exception(f"下载文件超时 {url}: {e}")
+        raise
     except (httpx.HTTPError, IOError, OSError) as e:
         logger.exception(f"下载文件异常 {url}: {e}")
         return False

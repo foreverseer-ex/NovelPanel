@@ -58,7 +58,7 @@ class ModelMeta(BaseModel):
         获取模型版本名称。
         """
         return f'{self.name}-{self.version}'
-        # return Path(self.filename).stem
+
 
     @property
     def air(self) -> str:

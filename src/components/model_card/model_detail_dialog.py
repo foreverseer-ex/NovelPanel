@@ -175,6 +175,31 @@ class ModelDetailDialog(ft.AlertDialog):
                 _make_item_vertical("基础模型", meta.base_model if meta.base_model else "未知"),
                 _make_item_vertical("AIR 标识符", meta.air),
             ]
+            if meta.web_page_url:
+                def _open_link(_e):
+                    if self.page:
+                        self.page.launch_url(meta.web_page_url)
+                vertical_items.append(
+                    ft.Container(
+                        content=ft.Row(
+                            [
+                                ft.Icon(ft.Icons.OPEN_IN_BROWSER, size=14, color=ft.Colors.BLUE_400),
+                                ft.Text(
+                                    meta.web_page_url if len(meta.web_page_url) <= 50 else f"{meta.web_page_url[:47]}...",
+                                    color=ft.Colors.BLUE_400,
+                                    weight=ft.FontWeight.W_500,
+                                ),
+                            ],
+                            spacing=4,
+                            tight=True,
+                        ),
+                        on_click=_open_link,
+                        tooltip="点击打开浏览器",
+                        padding=ft.padding.symmetric(horizontal=5, vertical=2),
+                        ink=True,
+                        border_radius=4,
+                    )
+                )
 
             desc_editable = EditableText(
                 value=meta.desc,

@@ -127,31 +127,9 @@ class ModelCard(ft.Column):
             alignment=ft.alignment.center,
         )
         
-        # 网页链接按钮（如果有）
         controls = [title, base_model_chip]
-        if self.model_meta.web_page_url:
-            web_link = ft.Container(
-                content=ft.Row(
-                    [
-                        ft.Icon(ft.Icons.OPEN_IN_BROWSER, size=12, color=ft.Colors.BLUE_400),
-                        ft.Text(
-                            "查看网页",
-                            size=11,
-                            color=ft.Colors.BLUE_400,
-                            weight=ft.FontWeight.W_500,
-                        ),
-                    ],
-                    spacing=4,
-                    tight=True,
-                ),
-                padding=ft.padding.symmetric(horizontal=4, vertical=2),
-                on_click=lambda _: self._open_web_page(),
-                ink=True,
-                border_radius=4,
-            )
-            controls.append(web_link)
         
-        # 信息区域：标题 + 基础模型 chip + 网页链接
+        # 信息区域：标题 + 基础模型 chip
         return ft.Column(
             controls=controls,
             spacing=SPACING_SMALL,
@@ -185,10 +163,7 @@ class ModelCard(ft.Column):
             # 打开对话框（AsyncImage 会自动加载）
             page.open(dlg)
     
-    def _open_web_page(self):
-        """在浏览器中打开模型网页。"""
-        if self.model_meta.web_page_url and self.page:
-            self.page.launch_url(self.model_meta.web_page_url)
+    
     
     def _on_right_click(self, e: ft.TapEvent):
         """右键菜单处理。

@@ -190,12 +190,18 @@ class LocalModelModelMetaService(AbstractModelMetaService):
         :param model_meta: 模型元数据（必须包含 type 字段，可以是远程的或本地的）
         :return: 本地化后的 ModelMeta
         """
-        # 确定基础路径（从 model_meta.type 获取类型）
-        if model_meta.type == ModelType.CHECKPOINT:
-            base_path = checkpoint_meta_home / Path(model_meta.filename).stem
-        else:
-            base_path = lora_meta_home / Path(model_meta.filename).stem
-        
+        # 确定基础路径与重名处理（使用内存缓存匹配同名文件）
+        home = checkpoint_meta_home if model_meta.type == ModelType.CHECKPOINT else lora_meta_home
+
+        existing_meta = self.get_by_filename(model_meta.filename)
+        if existing_meta is not None:
+            # 同名已存在：若 AIR xi同则改名以区分
+            if (existing_meta.air or "") != (model_meta.air or ""):
+                filename=Path(model_meta.filename)
+                model_meta.filename=f"{filename.stem}-{model_meta.model_id}-{model_meta.version_id}{filename.suffix}"
+
+
+        base_path = home / Path(model_meta.filename).stem
         base_path.mkdir(parents=True, exist_ok=True)
         
         # 处理示例图片
@@ -230,6 +236,7 @@ class LocalModelModelMetaService(AbstractModelMetaService):
             
             # 更新 URL 为本地 file:// URL
             for (example, save_path), success in zip(download_tasks, download_results):
+                example:Example
                 if success:
                     # 创建新的 Example，替换 URL 为本地 file:// URL
                     local_example = Example(
@@ -257,6 +264,7 @@ class LocalModelModelMetaService(AbstractModelMetaService):
             examples=localized_examples,
             ecosystem=model_meta.ecosystem,
             web_page_url=model_meta.web_page_url,
+            air=model_meta.air,
         )
         
         # 保存元数据到本地
@@ -318,16 +326,26 @@ class LocalModelModelMetaService(AbstractModelMetaService):
         :param name: 模型名称或文件名（不含扩展名）
         :return: 模型元数据，未找到返回 None
         """
-        # 去除可能的 .safetensors 后缀
-        name_stem = Path(name).stem
-        
-        # 搜索所有列表
+        # 仅按展示名称精确匹配
         for meta in self.sd_list + self.lora_list + self.vae_list:
-            # 匹配文件名（不含后缀）或模型名称
-            if Path(meta.filename).stem == name_stem or meta.name == name:
+            if meta.name == name:
                 return meta
         
         logger.debug(f"未在缓存中找到模型: {name}")
+        return None
+
+    def get_by_filename(self, filename: str) -> Optional[ModelMeta]:
+        """
+        通过文件名（stem）获取模型元数据（从内存缓存）。
+        
+        :param filename: 文件名或路径，支持包含扩展名
+        :return: 模型元数据，未找到返回 None
+        """
+        name_stem = Path(filename).stem
+        for meta in self.sd_list + self.lora_list + self.vae_list:
+            if Path(meta.filename).stem == name_stem:
+                return meta
+        logger.debug(f"未在缓存中找到文件名对应的模型: {filename}")
         return None
     
     def get_by_path(self, path: Path) -> Optional[ModelMeta]:

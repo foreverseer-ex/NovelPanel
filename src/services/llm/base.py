@@ -22,7 +22,7 @@ from routers.session import (
 from routers.actor import (
     create_actor, get_actor, list_actors, update_actor,
     remove_actor, get_tag_description, get_all_tag_descriptions,
-    add_example, remove_example
+    add_example, remove_example, generate_portrait
 )
 from routers.memory import (
     create_memory, get_memory, list_memories, update_memory,
@@ -120,7 +120,7 @@ class AbstractLlmService(ABC):
             get_session, update_session, update_session_status, update_progress,
             # Actor 管理
             create_actor, get_actor, list_actors, update_actor,
-            remove_actor, add_example, remove_example,
+            remove_actor, add_example, remove_example, generate_portrait,
             get_tag_description, get_all_tag_descriptions,
             # Memory 管理
             create_memory, get_memory, list_memories, update_memory,

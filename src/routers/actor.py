@@ -6,6 +6,8 @@ Actor 可以是角色、地点、组织等小说要素。
 """
 import uuid
 from typing import List, Optional, Dict
+from pathlib import Path
+from datetime import datetime
 from fastapi import APIRouter, HTTPException
 from loguru import logger
 
@@ -13,6 +15,8 @@ from schemas.actor import Actor, ActorExample
 from schemas.draw import DrawArgs
 from constants.actor import character_tags_description
 from services.db import ActorService
+from services.draw.sd_forge import sd_forge_draw_service
+from utils.path import project_home
 
 router = APIRouter(
     prefix="/actor",
@@ -337,3 +341,91 @@ async def get_all_tag_descriptions() -> Dict[str, str]:
         所有预定义的标签字典
     """
     return character_tags_description
+
+
+# ==================== 立绘生成 ====================
+
+@router.post("/{actor_id}/generate_portrait", summary="为 Actor 生成立绘")
+async def generate_portrait(
+    session_id: str,
+    actor_id: str,
+    model: str,
+    style: str = "",
+    negative_prompt: str = "worst quality, lowres, bad anatomy, extra fingers, deformed, blurry",
+    width: int = 768,
+    height: int = 1152,
+    steps: int = 28,
+    cfg_scale: float = 6.5,
+    sampler: str = "DPM++ 2M Karras",
+    seed: int = -1,
+    clip_skip: Optional[int] = 2,
+    vae: Optional[str] = None,
+    loras: Optional[Dict[str, float]] = None,
+    save_example: bool = True,
+) -> Dict[str, str]:
+    """
+    依据 Actor 设定快速生成“立绘”图片，并保存到项目目录。
+
+    - prompt 自动由 Actor 的 name/desc/tags 与可选 style 组成
+    - 生成后图片保存到 projects/{session_id}/actors/{actor_id}/
+    - 若 save_example 为 True，会将该结果写入 Actor.examples
+    """
+    # 校验 actor 归属
+    actor = ActorService.get(actor_id)
+    if not actor or actor.session_id != session_id:
+        raise HTTPException(status_code=404, detail=f"Actor 不存在: {actor_id}")
+
+    # 组装 prompt
+    tag_values = list((actor.tags or {}).values())
+    prompt_parts = [actor.name]
+    if actor.desc:
+        prompt_parts.append(actor.desc)
+    if tag_values:
+        prompt_parts.extend(tag_values)
+    if style:
+        prompt_parts.append(style)
+    prompt = ", ".join([p for p in prompt_parts if p and p.strip()])
+
+    # 调用绘图
+    args = DrawArgs(
+        model=model,
+        prompt=prompt,
+        negative_prompt=negative_prompt or "",
+        steps=steps,
+        cfg_scale=cfg_scale,
+        sampler=sampler,
+        seed=seed,
+        width=width,
+        height=height,
+        clip_skip=clip_skip,
+        vae=vae,
+        loras=loras or {},
+    )
+
+    job_id = sd_forge_draw_service.draw(args)
+
+    # 保存图片到 projects 路径
+    ts = datetime.now().strftime("%Y%m%d-%H%M%S")
+    out_dir: Path = project_home / session_id / "actors" / actor_id
+    out_dir.mkdir(parents=True, exist_ok=True)
+    filename = f"portrait-{ts}.png"
+    out_path = out_dir / filename
+    sd_forge_draw_service.save_image(job_id, out_path)
+
+    # 生成相对路径（相对 projects 根）
+    rel_path = out_path.relative_to(project_home).as_posix()
+
+    # 可选：写入 Actor 示例
+    if save_example:
+        example = ActorExample(
+            title=f"立绘 {ts}",
+            desc=style or "",
+            draw_args=args,
+            image_path=rel_path,
+        )
+        updated = ActorService.add_example(actor_id, example)
+        if not updated:
+            raise HTTPException(status_code=500, detail="保存示例失败")
+
+    logger.success(f"生成立绘成功: actor={actor.name}, file={rel_path}")
+    return {"job_id": job_id, "image_path": rel_path}
