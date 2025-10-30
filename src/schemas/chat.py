@@ -3,7 +3,7 @@
 """
 import uuid
 from typing import Literal, Union
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, ConfigDict
 
 
 # ============ 消息内容类型 ============
@@ -71,8 +71,8 @@ class ChatMessage(BaseModel):
         description="可选的选项列表（图像选项或文字选项）"
     )
     
-    class Config:
-        json_schema_extra = {
+    model_config = ConfigDict(
+        json_schema_extra={
             "examples": [
                 {
                     "id": "550e8400-e29b-41d4-a716-446655440000",
@@ -94,6 +94,7 @@ class ChatMessage(BaseModel):
                 }
             ]
         }
+    )
 
 
 class ChatHistory(BaseModel):
@@ -191,8 +192,8 @@ class ChatHistory(BaseModel):
         
         return result
     
-    class Config:
-        json_schema_extra = {
+    model_config = ConfigDict(
+        json_schema_extra={
             "examples": [
                 {
                     "messages": [
@@ -212,4 +213,5 @@ class ChatHistory(BaseModel):
                 }
             ]
         }
+    )
 

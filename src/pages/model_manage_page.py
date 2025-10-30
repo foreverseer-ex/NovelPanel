@@ -300,8 +300,8 @@ class ModelManagePage(ft.Column):
         
         # 所有导入完成后刷新页面
         if self.page:
-            # 确保在主线程更新UI
-            def _update_ui():
+            # 确保在主线程更新UI（Flet 需要协程函数）
+            async def _update_ui():
                 self._render_models()
                 # 显示结果
                 if failed_count == 0:

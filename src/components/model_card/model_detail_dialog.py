@@ -10,7 +10,7 @@ from schemas.model_meta import ModelMeta
 from components.async_media import AsyncMedia
 from components.editable_text import EditableText
 from services.model_meta import local_model_meta_service
-from constants.ui_size import (
+from constants.ui import (
     DIALOG_STANDARD_WIDTH, DIALOG_STANDARD_HEIGHT,
     LARGE_IMAGE_WIDTH, LARGE_IMAGE_HEIGHT,
     LOADING_SIZE_LARGE, DETAIL_LABEL_WIDTH,

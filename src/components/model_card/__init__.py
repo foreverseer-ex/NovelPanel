@@ -8,7 +8,7 @@ import flet as ft
 
 from schemas.model_meta import ModelMeta
 from constants.color import ModelTypeChipColor, BaseModelColor
-from constants.ui_size import (
+from constants.ui import (
     THUMBNAIL_WIDTH, THUMBNAIL_HEIGHT,
     CARD_INFO_HEIGHT, CARD_TITLE_HEIGHT, CARD_TITLE_MAX_LINES,
     CHIP_PADDING_H, CHIP_PADDING_V, CHIP_BORDER_RADIUS, CHIP_BORDER_WIDTH, CHIP_TEXT_SIZE,

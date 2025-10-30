@@ -9,7 +9,7 @@ from flet_toast.Types import Position
 
 from schemas.actor import Actor, ActorExample
 from schemas.draw import DrawArgs
-from constants.ui_size import (
+from constants.ui import (
     DIALOG_WIDE_WIDTH, DIALOG_WIDE_HEIGHT,
     THUMBNAIL_WIDTH, THUMBNAIL_HEIGHT,
     LARGE_IMAGE_WIDTH, LARGE_IMAGE_HEIGHT,

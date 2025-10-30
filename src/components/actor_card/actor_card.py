@@ -7,7 +7,7 @@ import flet as ft
 from loguru import logger
 
 from schemas.actor import Actor
-from constants.ui_size import CARD_WIDTH, CARD_HEIGHT, SPACING_SMALL
+from constants.ui import CARD_WIDTH, CARD_HEIGHT, SPACING_SMALL
 from .actor_detail_dialog import ActorDetailDialog
 from .actor_example_dialog import ActorExampleDialog
 

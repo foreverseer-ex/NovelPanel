@@ -9,7 +9,7 @@ from flet_toast import flet_toast
 from flet_toast.Types import Position
 
 from components.actor_card import ActorCard
-from constants.ui_size import SPACING_SMALL, SPACING_MEDIUM
+from constants.ui import SPACING_SMALL, SPACING_MEDIUM
 from services.db import ActorService
 from settings import app_settings
 

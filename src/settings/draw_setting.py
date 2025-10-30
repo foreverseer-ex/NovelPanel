@@ -3,7 +3,7 @@
 
 配置使用的绘图后端（SD-Forge 或 Civitai）。
 """
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, ConfigDict
 from typing import Literal
 
 
@@ -18,10 +18,11 @@ class DrawSettings(BaseModel):
         description="绘图后端：sd_forge（本地 SD-Forge）或 civitai（Civitai 云端）"
     )
     
-    class Config:
-        json_schema_extra = {
+    model_config = ConfigDict(
+        json_schema_extra={
             "example": {
                 "backend": "sd_forge"
             }
         }
+    )
 

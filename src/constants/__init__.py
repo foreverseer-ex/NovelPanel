@@ -5,7 +5,7 @@
 
 from .memory import novel_memory_description, user_memory_description, memory_description
 from .actor import character_tags_description
-from .ui_size import *  # 导出所有 UI 尺寸常量
+from .ui import *  # 导出所有 UI 常量（响应式）
 from .llm import (
     LlmProvider,
     LlmBaseUrl,

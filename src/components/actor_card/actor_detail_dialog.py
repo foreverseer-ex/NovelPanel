@@ -8,7 +8,7 @@ from flet_toast import flet_toast
 from flet_toast.Types import Position
 
 from schemas.actor import Actor
-from constants.ui_size import (
+from constants.ui import (
     DIALOG_STANDARD_WIDTH, DIALOG_STANDARD_HEIGHT,
     SPACING_SMALL, DETAIL_LABEL_WIDTH,
 )

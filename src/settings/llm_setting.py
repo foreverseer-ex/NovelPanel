@@ -8,7 +8,7 @@ LLM (大语言模型) 配置。
 - XAI_API_KEY: 设置 api_key（xAI 专用）
 """
 import os
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, ConfigDict
 
 from constants.llm import LlmProvider, LlmBaseUrl, DEFAULT_SYSTEM_PROMPT
 
@@ -69,8 +69,8 @@ class LlmSettings(BaseModel):
         description="对话总结周期：每隔多少轮对话进行一次总结（10-1000）"
     )
 
-    class Config:
-        json_schema_extra = {
+    model_config = ConfigDict(
+        json_schema_extra={
             "examples": [
                 # xAI (Grok) 配置
                 {
@@ -100,3 +100,4 @@ class LlmSettings(BaseModel):
                 },
             ]
         }
+    )

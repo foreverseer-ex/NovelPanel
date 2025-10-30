@@ -4,7 +4,7 @@ Actor 相关的数据模型。
 Actor 不仅指角色，也指小说中出现的要素（如国家、组织等）。
 每个 Actor 可以有多个示例图（立绘）。
 """
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict
 from sqlalchemy import Column, JSON
 from sqlalchemy.ext.mutable import MutableDict, MutableList
 from sqlmodel import SQLModel, Field
@@ -25,9 +25,9 @@ class ActorExample(BaseModel):
     draw_args: DrawArgs = Field(description="生成参数")
     image_path: str = Field(description="图片相对路径")
     
-    class Config:
-        """Pydantic 配置"""
-        arbitrary_types_allowed = True
+    model_config = ConfigDict(
+        arbitrary_types_allowed=True
+    )
 
 
 class Actor(SQLModel, table=True):
