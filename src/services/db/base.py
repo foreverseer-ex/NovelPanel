@@ -12,7 +12,9 @@ from utils.path import database_path
 # noqa 标记：这些导入是必需的，用于注册表到 SQLModel.metadata
 from schemas.session import Session as SessionModel  # noqa: F401
 from schemas.memory import MemoryEntry, ChapterSummary  # noqa: F401
-from schemas.actor import Character  # noqa: F401
+from schemas.actor import Actor  # noqa: F401
+from schemas.draw import Job, BatchJob  # noqa: F401
+from schemas.novel import NovelContent  # noqa: F401
 
 # 创建数据库引擎
 # check_same_thread=False 允许多线程访问（SQLite 默认只允许创建线程访问）
@@ -36,6 +38,17 @@ def init_db() -> None:
     # 创建所有表
     SQLModel.metadata.create_all(engine)
     logger.success(f"数据库已初始化: {database_path}")
+
+
+def drop_all_tables() -> None:
+    """
+    删除数据库中的所有表。
+    
+    ⚠️ 危险操作：将删除所有数据！
+    """
+    # 删除所有表
+    SQLModel.metadata.drop_all(engine)
+    logger.warning(f"已删除数据库所有表: {database_path}")
 
 
 def get_session() -> Generator[Session, None, None]:

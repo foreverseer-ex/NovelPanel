@@ -21,18 +21,32 @@ from .model_detail_dialog import ModelDetailDialog
 
 class ModelCard(ft.Column):
     """模型的可视化卡片，展示关键信息。"""
-    def __init__(self, model_meta: ModelMeta, all_models: list[ModelMeta] = None, index: int = 0):
+    def __init__(
+        self, 
+        model_meta: ModelMeta, 
+        all_models: list[ModelMeta] = None, 
+        index: int = 0,
+        on_delete: callable = None
+    ):
         """初始化模型卡片。
         
         :param model_meta: 模型元数据对象
         :param all_models: 所有模型列表（用于切换导航）
         :param index: 当前模型在列表中的索引
+        :param on_delete: 删除回调函数，接收 model_meta 作为参数
         """
         super().__init__()
         self.model_meta = model_meta
         self.all_models = all_models or [model_meta]
         self.index = index
+        self.on_delete_callback = on_delete
         self.width = THUMBNAIL_WIDTH  # 固定宽度
+        self.delete_confirm_dialog = None  # 延迟创建
+        
+        # 获取隐私模式设置
+        from settings import app_settings
+        privacy_mode = app_settings.ui.privacy_mode
+        
         # 使用 AsyncImage 组件
         self.preview_image = AsyncMedia(
             model_meta=model_meta,
@@ -44,6 +58,7 @@ class ModelCard(ft.Column):
             loading_size=30,
             loading_text="加载中...",
             loading_text_size=12,
+            privacy_mode=privacy_mode,
         )
         info_control = self._build_info()
         
@@ -51,26 +66,29 @@ class ModelCard(ft.Column):
         base_model_color = BaseModelColor.get(self.model_meta.base_model)
         
         self.controls = [
-            ft.Container(
-                content=ft.Card(
-                    content=ft.Container(
-                        content=ft.Column(
-                            controls=[
-                                self.preview_image,
-                                ft.Container(
-                                    content=info_control,
-                                    on_click=self._open_detail_dialog
-                                ),
-                            ],
-                            spacing=8,
+            ft.GestureDetector(
+                content=ft.Container(
+                    content=ft.Card(
+                        content=ft.Container(
+                            content=ft.Column(
+                                controls=[
+                                    self.preview_image,
+                                    ft.Container(
+                                        content=info_control,
+                                        on_click=self._open_detail_dialog
+                                    ),
+                                ],
+                                spacing=8,
+                            ),
+                            padding=SPACING_SMALL,
                         ),
-                        padding=SPACING_SMALL,
+                        elevation=2,  # 轻微阴影
                     ),
-                    elevation=2,  # 轻微阴影
+                    # ✨ 添加边框，颜色和 chip 一致
+                    border=ft.border.all(2, base_model_color),
+                    border_radius=10,
                 ),
-                # ✨ 添加边框，颜色和 chip 一致
-                border=ft.border.all(2, base_model_color),
-                border_radius=10,
+                on_secondary_tap_down=self._on_right_click,  # 右键菜单
             )
         ]
 
@@ -109,9 +127,33 @@ class ModelCard(ft.Column):
             alignment=ft.alignment.center,
         )
         
-        # 信息区域：标题 + 基础模型 chip
+        # 网页链接按钮（如果有）
+        controls = [title, base_model_chip]
+        if self.model_meta.web_page_url:
+            web_link = ft.Container(
+                content=ft.Row(
+                    [
+                        ft.Icon(ft.Icons.OPEN_IN_BROWSER, size=12, color=ft.Colors.BLUE_400),
+                        ft.Text(
+                            "查看网页",
+                            size=11,
+                            color=ft.Colors.BLUE_400,
+                            weight=ft.FontWeight.W_500,
+                        ),
+                    ],
+                    spacing=4,
+                    tight=True,
+                ),
+                padding=ft.padding.symmetric(horizontal=4, vertical=2),
+                on_click=lambda _: self._open_web_page(),
+                ink=True,
+                border_radius=4,
+            )
+            controls.append(web_link)
+        
+        # 信息区域：标题 + 基础模型 chip + 网页链接
         return ft.Column(
-            controls=[title, base_model_chip],
+            controls=controls,
             spacing=SPACING_SMALL,
             tight=True,  # 紧凑排列，缩小底部间距
             horizontal_alignment=ft.CrossAxisAlignment.STRETCH,  # 子元素横向拉伸填充
@@ -142,3 +184,96 @@ class ModelCard(ft.Column):
         if page:
             # 打开对话框（AsyncImage 会自动加载）
             page.open(dlg)
+    
+    def _open_web_page(self):
+        """在浏览器中打开模型网页。"""
+        if self.model_meta.web_page_url and self.page:
+            self.page.launch_url(self.model_meta.web_page_url)
+    
+    def _on_right_click(self, e: ft.TapEvent):
+        """右键菜单处理。
+        
+        :param e: 手势事件对象
+        """
+        if not self.on_delete_callback:
+            return
+        
+        # 创建删除确认对话框
+        self._open_delete_confirm_dialog(e)
+    
+    def _open_delete_confirm_dialog(self, e: ft.TapEvent):
+        """打开删除确认对话框"""
+        if not e.page:
+            return
+        
+        # 创建删除确认对话框
+        dialog = DeleteModelConfirmDialog(
+            model_meta=self.model_meta,
+            on_confirm=lambda: self.on_delete_callback(self.model_meta) if self.on_delete_callback else None,
+        )
+        
+        e.page.open(dialog)
+
+
+# ============================================================================
+# Dialog 类定义
+# ============================================================================
+
+class DeleteModelConfirmDialog(ft.AlertDialog):
+    """删除模型确认对话框"""
+    
+    def __init__(self, model_meta: 'ModelMeta', on_confirm: callable):
+        """
+        初始化删除模型确认对话框
+        
+        Args:
+            model_meta: 要删除的模型元数据
+            on_confirm: 确认回调函数，无参数
+        """
+        self.model_meta = model_meta
+        self.on_confirm = on_confirm
+        
+        super().__init__(
+            modal=True,
+            title=ft.Text("确认删除", color=ft.Colors.RED_700),
+            content=ft.Column([
+                ft.Icon(ft.Icons.WARNING_AMBER_ROUNDED, size=48, color=ft.Colors.ORANGE_700),
+                ft.Text("即将删除以下模型元数据：", size=16, weight=ft.FontWeight.BOLD),
+                ft.Divider(),
+                ft.Text(f"名称：{model_meta.name}", size=14),
+                ft.Text(f"版本：{model_meta.version_name}", size=14),
+                ft.Text(f"类型：{model_meta.type}", size=14),
+                ft.Text(f"基础模型：{model_meta.base_model}", size=14),
+                ft.Divider(),
+                ft.Text("⚠️ 此操作将删除：", size=14, color=ft.Colors.RED_700, weight=ft.FontWeight.BOLD),
+                ft.Text("• metadata.json 文件", size=12),
+                ft.Text(f"• {len(model_meta.examples)} 张示例图片", size=12),
+                ft.Text("• 整个元数据目录", size=12),
+                ft.Divider(),
+                ft.Text("⚠️ 此操作不可恢复！", size=14, color=ft.Colors.RED_700, weight=ft.FontWeight.BOLD),
+            ], tight=True, spacing=8, width=400, horizontal_alignment=ft.CrossAxisAlignment.CENTER),
+            actions=[
+                ft.TextButton("取消", on_click=self._on_cancel),
+                ft.ElevatedButton(
+                    "确认删除",
+                    bgcolor=ft.Colors.RED_700,
+                    color=ft.Colors.WHITE,
+                    on_click=self._on_confirm
+                ),
+            ],
+        )
+    
+    def _on_confirm(self, e):
+        """确认删除"""
+        # 关闭对话框
+        self.open = False
+        self.update()
+        
+        # 调用确认回调
+        if self.on_confirm:
+            self.on_confirm()
+    
+    def _on_cancel(self, e):
+        """取消删除"""
+        self.open = False
+        self.update()

@@ -10,12 +10,13 @@ import flet as ft
 class ChatInputField(ft.TextField):
     """聊天输入框"""
 
-    def __init__(self, on_submit_callback=None):
+    def __init__(self, on_submit_callback=None, on_change_callback=None):
         """
         初始化聊天输入框
 
         Args:
             on_submit_callback: 提交消息时的回调函数
+            on_change_callback: 内容变化时的回调函数（用于自动保存草稿）
         """
         super().__init__()
 
@@ -32,7 +33,10 @@ class ChatInputField(ft.TextField):
         self.autofocus = True
 
         self._on_submit_callback = on_submit_callback
+        self._on_change_callback = on_change_callback
+        
         self.on_submit = self._handle_submit
+        self.on_change = self._handle_change
 
     def _handle_submit(self, e: ft.ControlEvent):
         """处理提交事件"""
@@ -41,6 +45,11 @@ class ChatInputField(ft.TextField):
             self.value = ""
             self.focus()
             self.update()
+    
+    def _handle_change(self, e: ft.ControlEvent):
+        """处理内容变化事件"""
+        if self._on_change_callback:
+            self._on_change_callback(self.value)
 
 
 class ChatInputArea(ft.Container):
@@ -57,8 +66,14 @@ class ChatInputArea(ft.Container):
 
         self._on_send_message = on_send_message
 
-        # 创建输入框
-        self.input_field = ChatInputField(on_submit_callback=self._handle_send)
+        # 创建输入框（包含草稿自动保存）
+        self.input_field = ChatInputField(
+            on_submit_callback=self._handle_send,
+            on_change_callback=self._handle_draft_change
+        )
+        
+        # 加载草稿内容
+        self._load_draft()
 
         # 创建发送按钮
         self.send_button = ft.IconButton(
@@ -98,6 +113,25 @@ class ChatInputArea(ft.Container):
         self.padding = ft.padding.symmetric(horizontal=0, vertical=15)
         self.expand = False
 
+    def _load_draft(self):
+        """加载草稿内容"""
+        try:
+            from settings import app_settings
+            draft = app_settings.ui.draft_message
+            if draft:
+                self.input_field.value = draft
+        except Exception:
+            pass  # 忽略加载错误
+    
+    def _handle_draft_change(self, content: str):
+        """处理草稿内容变化（自动保存）"""
+        try:
+            from settings import app_settings
+            app_settings.ui.draft_message = content
+            app_settings.save()
+        except Exception:
+            pass  # 忽略保存错误
+    
     def _handle_send(self, message: str = None):
         """
         处理发送消息
@@ -112,6 +146,15 @@ class ChatInputArea(ft.Container):
             self._on_send_message(message.strip())
             self.input_field.value = ""
             self.input_field.focus()
+            
+            # 清空草稿
+            try:
+                from settings import app_settings
+                app_settings.ui.draft_message = ""
+                app_settings.save()
+            except Exception:
+                pass
+            
             self.update()
 
     def _handle_send_click(self, _e: ft.ControlEvent):

@@ -15,7 +15,7 @@ from services.model_meta.base import AbstractModelMetaService
 from settings import app_settings
 from constants.civitai import CIVITAI_BASE_URL
 from utils.hash import sha256
-from utils.civitai import parse_air, normalize_type
+from utils.civitai import AIR, normalize_type
 
 class CivitaiModelMetaService(AbstractModelMetaService):
     """
@@ -55,12 +55,12 @@ class CivitaiModelMetaService(AbstractModelMetaService):
         # 通过 AIR 标识符来规范化字段
         # AIR 包含 ecosystem（技术代际）信息，而不是 base_model
 
-        air = parse_air(version_data['air'])
+        air = AIR.parse(version_data['air'])
         
         # 使用 AIR 解析出的规范化字段
         model_id = air.model_id
         version_id = air.version_id
-        type_normalized = normalize_type(air.type)  # 规范化类型（LyCORIS -> lora）
+        type_normalized = normalize_type(air.type)  # 规范化类型（lycoris -> lora）
         ecosystem_normalized = air.ecosystem
         
         # 从 version_data 中提取真正的 base_model（如 Pony, Illustrious）
@@ -73,20 +73,22 @@ class CivitaiModelMetaService(AbstractModelMetaService):
         examples: list[Example] = []
         for image_detail in version_data.get("images", []):
             meta = image_detail.get("meta", {})
+            if meta is None:
+                meta={}
             metadata = image_detail.get("metadata", {})
             
             examples.append(
                 Example(
                     url=image_detail.get("url", ""),
                     args=DrawArgs(
-                        width=metadata.get("width", 512),
-                        height=metadata.get("height", 512),
+                        width=metadata.get("width", 0),
+                        height=metadata.get("height", 0),
                         seed=meta.get("seed", -1),
                         model=meta.get("Model", ""),
-                        steps=meta.get("steps", 20),
+                        steps=meta.get("steps", 0),
                         prompt=meta.get("prompt", ""),
-                        sampler=meta.get("sampler", "Euler a"),
-                        cfg_scale=meta.get("cfgScale", 7.0),
+                        sampler=meta.get("sampler", ""),
+                        cfg_scale=meta.get("cfgScale", 0),
                         negative_prompt=meta.get("negativePrompt", ""),
                         clip_skip=meta.get("clipSkip"),
                     ),
@@ -96,6 +98,9 @@ class CivitaiModelMetaService(AbstractModelMetaService):
         # 获取文件信息
         files = version_data.get("files", [])
         file_name = files[0]["name"]
+        
+        # 构建网页链接
+        web_page_url = f"https://civitai.com/models/{model_id}/{version_id}"
         # 构造 ModelMeta（使用解析后的规范化字段）
         model_meta = ModelMeta(
             filename=file_name,
@@ -110,6 +115,7 @@ class CivitaiModelMetaService(AbstractModelMetaService):
             sha256=files[0].get("hashes", {}).get("SHA256", "") if files else "",
             trained_words=version_data.get("trainedWords", []),
             url=files[0].get("downloadUrl", "") if files else "",
+            web_page_url=web_page_url,  # 添加网页链接
             examples=examples,
         )
         
@@ -214,7 +220,7 @@ class CivitaiModelMetaService(AbstractModelMetaService):
             return model_meta
             
         except (KeyError, IndexError, TypeError) as e:
-            logger.error(f"解析 Civitai API 响应失败: {e}")
+            logger.exception(f"解析 Civitai API 响应失败: {e}")
             return None
         except Exception as e:
             logger.exception(f"从 Civitai 获取模型元数据失败: {e}")

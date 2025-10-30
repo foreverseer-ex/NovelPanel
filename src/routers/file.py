@@ -1,11 +1,15 @@
 """
 文件管理的路由。
 
-简化设计：只处理小说文件和生成图像的读写。
+简化设计：主要提供图像文件的访问。
+小说文件的上传和管理通过 Session 和 NovelContent 服务处理。
 """
-from fastapi import APIRouter, UploadFile, File
+from pathlib import Path
+from fastapi import APIRouter, HTTPException
 from fastapi.responses import FileResponse
 
+from services.db import ActorService
+from schemas.actor import ActorExample
 
 router = APIRouter(
     prefix="/file",
@@ -14,84 +18,48 @@ router = APIRouter(
 )
 
 
-# ==================== 小说文件 ====================
+# ==================== Actor 示例图访问 ====================
 
-@router.put("/novel", summary="上传/保存小说文件")
-async def put_novel(
-    session_id: str,
-    file: UploadFile = File(..., description="小说文件（TXT）")
-) -> dict:
+@router.get("/actor-example/{actor_id}/{example_index}", response_class=FileResponse, summary="获取 Actor 示例图")
+async def get_actor_example_image(actor_id: str, example_index: int) -> FileResponse:
     """
-    上传/保存小说文件到会话。
+    获取 Actor 示例图文件。
     
     Args:
-        session_id: 会话ID
-        file: 小说文件（TXT格式）
+        actor_id: Actor ID
+        example_index: 示例图索引
     
     Returns:
-        保存结果，包含文件路径等信息
+        图像文件
     
-    实现要点：
-    - 自动检测文本编码
-    - 保存到会话目录（如 storage/sessions/{session_id}/novel.txt）
-    - 触发小说解析任务
+    Raises:
+        HTTPException: 图像不存在时返回 404
     """
-    # TODO: 实现小说文件上传逻辑
-    raise NotImplementedError("小说文件上传功能尚未实现")
-
-
-@router.get("/novel", response_class=FileResponse, summary="获取小说文件")
-async def get_novel(session_id: str) -> FileResponse:
-    """
-    获取会话的小说文件。
+    actor = ActorService.get(actor_id)
+    if not actor:
+        raise HTTPException(status_code=404, detail=f"Actor 不存在: {actor_id}")
     
-    Args:
-        session_id: 会话ID
+    if example_index < 0 or example_index >= len(actor.examples):
+        raise HTTPException(status_code=404, detail=f"示例图索引越界: {example_index}")
     
-    Returns:
-        小说文件内容
+    example_dict = actor.examples[example_index]
+    example = ActorExample(**example_dict)
+    image_path = Path(example.image_path)
     
-    实现要点：
-    - 返回会话目录下的小说文件
-    - 设置正确的 Content-Type
-    """
-    # TODO: 实现小说文件获取逻辑
-    raise NotImplementedError("小说文件获取功能尚未实现")
+    if not image_path.exists():
+        raise HTTPException(status_code=404, detail=f"示例图文件不存在: {example.image_path}")
+    
+    return FileResponse(
+        path=str(image_path),
+        media_type="image/png",
+        filename=image_path.name
+    )
 
 
-# ==================== 生成图像 ====================
+# ==================== 生成图像访问 ====================
 
-@router.put("/image", summary="保存生成的图像")
-async def put_image(
-    session_id: str,
-    line: int,
-    file: UploadFile = File(..., description="生成的图像文件")
-) -> dict:
-    """
-    保存生成的图像。
-    
-    Args:
-        session_id: 会话ID
-        line: 行号（从0开始）
-        file: 图像文件
-    
-    Returns:
-        保存结果，包含文件路径等信息
-    
-    实现要点：
-    - 保存到会话目录（如 storage/sessions/{session_id}/images/{line}.png）
-    - 自动创建目录
-    - 覆盖同名文件
-    """
-    # TODO: 实现图像保存逻辑
-    raise NotImplementedError("图像保存功能尚未实现")
-
-
-@router.get("/image", response_class=FileResponse, summary="获取生成的图像")
-async def get_image(
-    session_id: str,
-    line: int
-) -> FileResponse:
+@router.get("/image/{session_id}/{line}", response_class=FileResponse, summary="获取生成的图像")
+async def get_generated_image(session_id: str, line: int) -> FileResponse:
     """
     获取指定行的生成图像。
     
@@ -102,10 +70,57 @@ async def get_image(
     Returns:
         图像文件
     
-    实现要点：
-    - 返回会话目录下的图像文件
-    - 设置正确的 Content-Type
-    - 如果文件不存在，返回404
+    Raises:
+        HTTPException: 图像不存在时返回 404
     """
-    # TODO: 实现图像获取逻辑
-    raise NotImplementedError("图像获取功能尚未实现")
+    # 图像保存在项目的 images 目录
+    image_path = Path(f"storage/data/projects/{session_id}/images/{line}.png")
+    
+    if not image_path.exists():
+        raise HTTPException(
+            status_code=404,
+            detail=f"生成图像不存在: line={line}"
+        )
+    
+    return FileResponse(
+        path=str(image_path),
+        media_type="image/png",
+        filename=f"{line}.png"
+    )
+
+
+# ==================== 项目文件访问 ====================
+
+@router.get("/project/{session_id}/novel", response_class=FileResponse, summary="获取项目小说文件")
+async def get_project_novel(session_id: str) -> FileResponse:
+    """
+    获取项目的原始小说文件。
+    
+    Args:
+        session_id: 会话ID
+    
+    Returns:
+        小说文件
+    
+    Raises:
+        HTTPException: 文件不存在时返回 404
+    
+    注意：
+        这个路由返回原始上传的小说文件，
+        不是数据库中的 NovelContent。
+    """
+    from services.db import SessionService
+    
+    session = SessionService.get(session_id)
+    if not session or not session.novel_path:
+        raise HTTPException(status_code=404, detail="小说文件不存在")
+    
+    novel_path = Path(session.novel_path)
+    if not novel_path.exists():
+        raise HTTPException(status_code=404, detail="小说文件不存在")
+    
+    return FileResponse(
+        path=str(novel_path),
+        media_type="text/plain",
+        filename=novel_path.name
+    )

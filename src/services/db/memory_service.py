@@ -32,6 +32,7 @@ class MemoryService:
             db.add(entry)
             db.flush()
             db.refresh(entry)
+            db.expunge(entry)
             logger.info(f"创建记忆条目: {entry.key}")
             return entry
     
@@ -46,6 +47,7 @@ class MemoryService:
         with DatabaseSession() as db:
             entry = db.get(MemoryEntry, memory_id)
             if entry:
+                db.expunge(entry)
                 logger.debug(f"获取记忆条目: {memory_id}")
             else:
                 logger.warning(f"记忆条目不存在: {memory_id}")
@@ -66,7 +68,30 @@ class MemoryService:
                 statement = statement.limit(limit)
             
             entries = db.exec(statement).all()
+            for entry in entries:
+                db.expunge(entry)
             logger.debug(f"获取记忆条目列表: {len(entries)} 条")
+            return list(entries)
+    
+    @classmethod
+    def list_entries_by_session(cls, session_id: str, limit: Optional[int] = None, offset: int = 0) -> list[MemoryEntry]:
+        """
+        根据会话 ID 获取记忆条目列表。
+        
+        :param session_id: 会话 ID
+        :param limit: 返回数量限制（None 表示无限制）
+        :param offset: 跳过的记录数
+        :return: 记忆条目列表
+        """
+        with DatabaseSession() as db:
+            statement = select(MemoryEntry).where(MemoryEntry.session_id == session_id).offset(offset)
+            if limit is not None:
+                statement = statement.limit(limit)
+            
+            entries = db.exec(statement).all()
+            for entry in entries:
+                db.expunge(entry)
+            logger.debug(f"获取会话 {session_id} 的记忆条目: {len(entries)} 条")
             return list(entries)
     
     @classmethod
@@ -92,6 +117,7 @@ class MemoryService:
             db.add(entry)
             db.flush()
             db.refresh(entry)
+            db.expunge(entry)
             logger.info(f"更新记忆条目: {memory_id}")
             return entry
     
@@ -127,6 +153,7 @@ class MemoryService:
             db.add(summary)
             db.flush()
             db.refresh(summary)
+            db.expunge(summary)
             logger.info(f"创建章节摘要: chapter {summary.chapter_index}")
             return summary
     
@@ -144,6 +171,7 @@ class MemoryService:
             )
             summary = db.exec(statement).first()
             if summary:
+                db.expunge(summary)
                 logger.debug(f"获取章节摘要: chapter {chapter_index}")
             else:
                 logger.warning(f"章节摘要不存在: chapter {chapter_index}")
@@ -164,7 +192,30 @@ class MemoryService:
                 statement = statement.limit(limit)
             
             summaries = db.exec(statement).all()
+            for summary in summaries:
+                db.expunge(summary)
             logger.debug(f"获取章节摘要列表: {len(summaries)} 条")
+            return list(summaries)
+    
+    @classmethod
+    def list_summaries_by_session(cls, session_id: str, limit: Optional[int] = None, offset: int = 0) -> list[ChapterSummary]:
+        """
+        根据会话 ID 获取章节摘要列表。
+        
+        :param session_id: 会话 ID
+        :param limit: 返回数量限制（None 表示无限制）
+        :param offset: 跳过的记录数
+        :return: 章节摘要列表
+        """
+        with DatabaseSession() as db:
+            statement = select(ChapterSummary).where(ChapterSummary.session_id == session_id).offset(offset)
+            if limit is not None:
+                statement = statement.limit(limit)
+            
+            summaries = db.exec(statement).all()
+            for summary in summaries:
+                db.expunge(summary)
+            logger.debug(f"获取会话 {session_id} 的章节摘要: {len(summaries)} 条")
             return list(summaries)
     
     @classmethod
@@ -193,6 +244,7 @@ class MemoryService:
             db.add(summary)
             db.flush()
             db.refresh(summary)
+            db.expunge(summary)
             logger.info(f"更新章节摘要: chapter {chapter_index}")
             return summary
     

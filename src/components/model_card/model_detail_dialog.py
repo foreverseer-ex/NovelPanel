@@ -290,6 +290,46 @@ class ModelDetailDialog(ft.AlertDialog):
                 vertical_alignment=ft.CrossAxisAlignment.CENTER,  # 垂直居中对齐
             )
         
+        # 创建网页链接行（可点击打开浏览器）
+        def _make_link_row(label: str, url: str) -> ft.Row:
+            """创建一行包含可点击链接的行。
+            
+            :param label: 标签文本
+            :param url: 链接 URL
+            :return: Row 控件
+            """
+            label_control = ft.Container(
+                content=ft.Text(f"{label}:", weight=ft.FontWeight.BOLD),
+                width=DETAIL_LABEL_WIDTH,
+                padding=ft.padding.symmetric(horizontal=0, vertical=2),
+            )
+            
+            link_control = ft.Container(
+                content=ft.Row(
+                    [
+                        ft.Icon(ft.Icons.OPEN_IN_BROWSER, size=14, color=ft.Colors.BLUE_400),
+                        ft.Text(
+                            url if len(url) <= 50 else f"{url[:47]}...",
+                            color=ft.Colors.BLUE_400,
+                            weight=ft.FontWeight.W_500,
+                        ),
+                    ],
+                    spacing=4,
+                    tight=True,
+                ),
+                on_click=lambda _: self.page.launch_url(url) if self.page else None,
+                tooltip="点击打开浏览器",
+                expand=True,
+                padding=ft.padding.symmetric(horizontal=5, vertical=2),
+                ink=True,
+                border_radius=4,
+            )
+            
+            return ft.Row(
+                controls=[label_control, link_control],
+                spacing=10,
+            )
+        
         # 基础信息行
         rows = [
             _make_row("版本名称", meta.version_name),
@@ -298,6 +338,10 @@ class ModelDetailDialog(ft.AlertDialog):
             _make_row("基础模型", meta.base_model if meta.base_model else "未知"),
             _make_row("AIR 标识符", meta.air),  # ✨ 新增 AIR 行
         ]
+        
+        # 添加网页链接（如果有）
+        if meta.web_page_url:
+            rows.append(_make_link_row("网页链接", meta.web_page_url))
         
         # 触发词
         if meta.trained_words:

@@ -8,6 +8,7 @@ import flet as ft
 from enum import Enum
 from typing import Optional
 from schemas.chat import ChatMessage as ChatMessageData, TextMessage, ToolCall, ImageChoice, TextChoice
+from constants.color import ToolRouterColor
 
 
 class MessageRole(Enum):
@@ -40,7 +41,8 @@ class ChatMessage(ft.Row):
         role: MessageRole, 
         content: str = "", 
         is_markdown: bool = True,
-        message_data: Optional[ChatMessageData] = None
+        message_data: Optional[ChatMessageData] = None,
+        on_delete: callable = None
     ):
         """
         初始化聊天消息
@@ -50,6 +52,7 @@ class ChatMessage(ft.Row):
             content: 消息内容（简单模式）
             is_markdown: 是否使用 Markdown 渲染（默认 True）
             message_data: 完整的消息数据对象（高级模式）
+            on_delete: 删除消息的回调函数
         """
         super().__init__()
 
@@ -57,6 +60,7 @@ class ChatMessage(ft.Row):
         self.message_content = content
         self.is_markdown = is_markdown
         self.message_data = message_data
+        self.on_delete_callback = on_delete
         self.vertical_alignment = ft.CrossAxisAlignment.START
         self.spacing = 10
 
@@ -66,6 +70,23 @@ class ChatMessage(ft.Row):
             color=ft.Colors.WHITE,
             bgcolor=role.color,
             radius=20,
+        )
+        
+        # 创建删除按钮
+        delete_button = ft.IconButton(
+            icon=ft.Icons.DELETE_OUTLINE,
+            icon_size=16,
+            tooltip="删除此消息",
+            icon_color=ft.Colors.GREY_600,
+            on_click=lambda e: self._handle_delete() if self.on_delete_callback else None,
+            visible=on_delete is not None,  # 只有提供了回调才显示
+        )
+        
+        # 头像和删除按钮的列
+        avatar_column = ft.Column(
+            [avatar, delete_button],
+            spacing=5,
+            horizontal_alignment=ft.CrossAxisAlignment.CENTER,
         )
 
         # 创建消息内容区域
@@ -151,7 +172,7 @@ class ChatMessage(ft.Row):
             
             self.controls = [
                 message_column,
-                avatar,
+                avatar_column,
             ]
         else:
             # AI/系统消息：左对齐，头像在左侧
@@ -173,9 +194,14 @@ class ChatMessage(ft.Row):
             )
             
             self.controls = [
-                avatar,
+                avatar_column,
                 message_column,
             ]
+    
+    def _handle_delete(self):
+        """处理删除消息"""
+        if self.on_delete_callback:
+            self.on_delete_callback(self)
     
     def _create_content_widgets(self, message_data: ChatMessageData) -> list:
         """
@@ -217,20 +243,51 @@ class ChatMessage(ft.Row):
             
             elif isinstance(msg_content, ToolCall):
                 # 渲染工具调用按钮
+                # 格式化参数：arg1=xxx, arg2=xxx
+                args_str = ", ".join([f"{k}={repr(v)}" for k, v in msg_content.arguments.items()])
+                
+                # 构建完整的显示文本：funcname(arg1=xxx,arg2=xxx) -> 返回值
+                if msg_content.result:
+                    result_display = msg_content.result
+                    if len(result_display) > 50:  # 结果截断到50字符
+                        result_display = result_display[:50] + "..."
+                    tool_text = f"{msg_content.tool_name}({args_str}) -> {result_display}"
+                else:
+                    tool_text = f"{msg_content.tool_name}({args_str}) -> (无返回值)"
+                
+                # 如果整体文本过长，截断
+                max_display_length = 120
+                if len(tool_text) > max_display_length:
+                    tool_text = tool_text[:max_display_length] + "..."
+                
+                # 根据工具名称获取对应的路由颜色
+                tool_color = ToolRouterColor.get(msg_content.tool_name)
+                
+                # 使用 ElevatedButton 代替 Chip，更明显的可点击外观
                 tool_button = ft.ElevatedButton(
                     content=ft.Row(
                         [
-                            ft.Icon(ft.Icons.BUILD, size=16),
-                            ft.Text(f"工具调用: {msg_content.tool_name}", size=12),
+                            ft.Icon(ft.Icons.BUILD, size=16, color=ft.Colors.WHITE),
+                            ft.Text(
+                                tool_text, 
+                                size=11, 
+                                font_family="Consolas",
+                                color=ft.Colors.WHITE,
+                                overflow=ft.TextOverflow.ELLIPSIS,  # 额外保险
+                                max_lines=1,
+                            ),
                         ],
-                        spacing=5,
+                        spacing=8,
+                        tight=True,
                     ),
                     style=ft.ButtonStyle(
-                        bgcolor=ft.Colors.BLUE_900,
+                        bgcolor=tool_color,
                         color=ft.Colors.WHITE,
+                        padding=ft.padding.symmetric(horizontal=12, vertical=8),
+                        shape=ft.RoundedRectangleBorder(radius=8),
                     ),
-                    # TODO: 实现点击展开工具调用详情
-                    on_click=None,
+                    # 点击显示工具调用详情
+                    on_click=lambda e, tool=msg_content: self._show_tool_detail_dialog(tool),
                 )
                 widgets.append(tool_button)
         
@@ -312,6 +369,168 @@ class ChatMessage(ft.Row):
             except (AssertionError, AttributeError):
                 # 控件未添加到页面或页面不存在，在测试环境中会出现
                 pass
+    
+    def _show_tool_detail_dialog(self, tool_call: ToolCall):
+        """显示工具调用详情对话框"""
+        if not self.page:
+            return
+        dialog = ToolCallDetailDialog(tool_call)
+        self.page.open(dialog)
+
+
+class ToolCallDetailDialog(ft.AlertDialog):
+    """工具调用详情对话框"""
+    
+    def __init__(self, tool_call: ToolCall):
+        """
+        初始化工具调用详情对话框
+        
+        Args:
+            tool_call: 工具调用对象
+        """
+        import json
+        
+        # 构建参数表单式展示（格式化 JSON）
+        param_text = json.dumps(tool_call.arguments, ensure_ascii=False, indent=2)
+        
+        # 格式化返回值
+        result_text = self._format_result(tool_call.result)
+        
+        # 工具名称和结果
+        dialog_content = ft.Column(
+            [
+                # 工具名称
+                ft.Row(
+                    [
+                        ft.Icon(ft.Icons.BUILD, size=20, color=ft.Colors.BLUE_400),
+                        ft.Text(
+                            tool_call.tool_name,
+                            size=18,
+                            weight=ft.FontWeight.BOLD,
+                            color=ft.Colors.BLUE_400,
+                        ),
+                    ],
+                    spacing=10,
+                ),
+                ft.Divider(),
+                
+                # 参数标题
+                ft.Text("参数", size=15, weight=ft.FontWeight.BOLD),
+                ft.Container(height=5),
+                
+                # 参数列表（JSON 格式）
+                ft.Container(
+                    content=ft.Text(
+                        param_text,
+                        size=12,
+                        selectable=True,
+                        font_family="Microsoft YaHei",
+                        color=ft.Colors.CYAN_400,
+                    ) if param_text else ft.Text("无参数", color=ft.Colors.GREY_600),
+                    padding=10,
+                    bgcolor=ft.Colors.GREY_900,
+                    border_radius=8,
+                ),
+                
+                ft.Container(height=10),
+                
+                # 返回值标题
+                ft.Text("返回值", size=15, weight=ft.FontWeight.BOLD),
+                ft.Container(height=5),
+                
+                # 返回值内容（格式化显示）
+                ft.Container(
+                    content=ft.Text(
+                        result_text,
+                        size=12,
+                        selectable=True,
+                        font_family="Microsoft YaHei",
+                        color=ft.Colors.GREEN_400 if tool_call.result else ft.Colors.GREY_600,
+                    ),
+                    padding=15,
+                    bgcolor=ft.Colors.GREY_900,
+                    border_radius=8,
+                ),
+            ],
+            spacing=10,
+            scroll=ft.ScrollMode.AUTO,
+        )
+        
+        super().__init__(
+            modal=True,
+            title=ft.Text("工具调用详情", weight=ft.FontWeight.BOLD),
+            content=ft.Container(
+                content=dialog_content,
+                width=600,
+                height=500,
+            ),
+            actions=[
+                ft.TextButton("关闭", on_click=self._on_close),
+            ],
+            actions_alignment=ft.MainAxisAlignment.END,
+        )
+    
+    def _format_result(self, result: str) -> str:
+        """格式化工具返回值
+        
+        Args:
+            result: 原始返回值字符串
+            
+        Returns:
+            格式化后的字符串
+        """
+        import json
+        import re
+        
+        if not result:
+            return "(无返回值)"
+        
+        # 尝试解析为 JSON
+        try:
+            parsed = json.loads(result)
+            return json.dumps(parsed, ensure_ascii=False, indent=2)
+        except:
+            pass
+        
+        # 尝试解析为 Python 对象字符串（如 Pydantic 的 __str__）
+        # 例如：content="actor_id='xxx' name='xxx' ..."
+        if result.startswith("content=") or "=" in result:
+            # 按照键值对分割
+            lines = []
+            # 使用正则提取 key='value' 或 key=value 模式
+            pattern = r"(\w+)=('([^']*)'|\"([^\"]*)\"|([^\s]+))"
+            matches = re.findall(pattern, result)
+            
+            if matches:
+                for match in matches:
+                    key = match[0]
+                    # match[2], match[3], match[4] 分别对应不同引号或无引号的值
+                    value = match[2] or match[3] or match[4]
+                    
+                    # 如果值太长，换行显示
+                    if len(value) > 80:
+                        lines.append(f"{key}=")
+                        # 按 80 字符分割
+                        for i in range(0, len(value), 80):
+                            lines.append(f"  {value[i:i+80]}")
+                    else:
+                        lines.append(f"{key}={value}")
+                
+                return "\n".join(lines)
+        
+        # 如果没有特殊格式，尝试按长度换行
+        if len(result) > 100:
+            lines = []
+            for i in range(0, len(result), 100):
+                lines.append(result[i:i+100])
+            return "\n".join(lines)
+        
+        return result
+    
+    def _on_close(self, e):
+        """关闭对话框"""
+        self.open = False
+        self.update()
 
 
 class TypingIndicator(ft.Row):
@@ -336,14 +555,20 @@ class TypingIndicator(ft.Row):
 class ChatMessageList(ft.ListView):
     """聊天消息列表容器"""
 
-    def __init__(self):
-        """初始化聊天消息列表"""
+    def __init__(self, on_delete_message: callable = None):
+        """
+        初始化聊天消息列表
+        
+        Args:
+            on_delete_message: 删除消息的回调函数 (message_widget) -> None
+        """
         super().__init__()
 
         self.expand = True
         self.spacing = 15
         self.padding = ft.padding.all(20)
         self.auto_scroll = False  # 禁用自动滚动
+        self.on_delete_message_callback = on_delete_message
 
     def add_message(self, role: MessageRole, content: str, is_markdown: bool = True):
         """
@@ -358,7 +583,7 @@ class ChatMessageList(ft.ListView):
             创建的消息对象
         """
         # 添加消息
-        message = ChatMessage(role, content, is_markdown)
+        message = ChatMessage(role, content, is_markdown, on_delete=self.on_delete_message_callback)
         self.controls.append(message)
         
         # 在消息后面添加分隔线
@@ -381,7 +606,7 @@ class ChatMessageList(ft.ListView):
             创建的消息对象
         """
         # 添加消息
-        message = ChatMessage(role, message_data=message_data)
+        message = ChatMessage(role, message_data=message_data, on_delete=self.on_delete_message_callback)
         self.controls.append(message)
         
         # 在消息后面添加分隔线
@@ -425,13 +650,37 @@ class ChatMessageList(ft.ListView):
         if self.controls:
             # 滚动到最后一个元素
             self.scroll_to(offset=-1, duration=300)
+    
+    def _create_message_widget(self, role: MessageRole, message_data: ChatMessageData = None, content: str = None, is_markdown: bool = True):
+        """
+        创建消息控件（内部方法）
+        
+        Args:
+            role: 消息角色
+            message_data: 完整的消息数据对象（优先使用）
+            content: 简单文本内容（当 message_data 为 None 时使用）
+            is_markdown: 是否使用 Markdown 渲染
+            
+        Returns:
+            ChatMessage 控件
+        """
+        if message_data:
+            return ChatMessage(role, message_data=message_data)
+        else:
+            return ChatMessage(role, content or "", is_markdown)
+    
 
 
 class ChatMessageDisplay(ft.Container):
     """聊天消息显示容器"""
 
-    def __init__(self):
-        """初始化聊天消息显示容器"""
+    def __init__(self, on_delete_message: callable = None):
+        """
+        初始化聊天消息显示容器
+        
+        Args:
+            on_delete_message: 删除消息的回调函数 (message_widget) -> None
+        """
         super().__init__()
 
         self.expand = True
@@ -441,31 +690,12 @@ class ChatMessageDisplay(ft.Container):
         self.margin = ft.margin.symmetric(horizontal=0, vertical=0)
 
         # 创建消息列表
-        self.message_list = ChatMessageList()
+        self.message_list = ChatMessageList(on_delete_message=on_delete_message)
         
-        # 创建滚动到底部按钮
-        self.scroll_button = ft.FloatingActionButton(
-            icon=ft.Icons.ARROW_DOWNWARD,
-            mini=True,
-            tooltip="滚动到底部",
-            on_click=self._scroll_to_bottom,
-            bgcolor=ft.Colors.BLUE_700,
-        )
-        
-        # 使用 Stack 布局，将按钮悬浮在右下角
-        self.content = ft.Stack(
-            controls=[
-                self.message_list,
-                ft.Container(
-                    content=self.scroll_button,
-                    right=20,
-                    bottom=20,
-                ),
-            ],
-            expand=True,
-        )
+        # 直接显示消息列表（不使用 Stack 和浮动按钮）
+        self.content = self.message_list
     
-    def _scroll_to_bottom(self, _e: ft.ControlEvent):
-        """处理滚动到底部按钮点击"""
+    def scroll_to_bottom(self):
+        """滚动到底部（公开方法，供外部调用）"""
         self.message_list.scroll_to_bottom()
 

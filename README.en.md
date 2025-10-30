@@ -2,30 +2,30 @@
 
 English | [中文](README.md)
 
-**Novel Creation & Visualization Tool** with AI chat, image generation, and model management.
+**AI-Powered Novel Creation & Visualization Tool** - Intelligent chat, image generation, and model management.
 
 ## ✨ Core Features
 
-### 🤖 AI Creative Assistant
+### 🤖 AI Chat System
 - **Multi-LLM Support**: OpenAI / xAI (Grok) / Ollama / Anthropic (Claude) / Google (Gemini)
-- **Smart Chat**: Streaming output, persistent conversation history, multi-turn conversations
-- **Tool Router System**: AI can invoke built-in tools (session management, character management, memory, novel reader, drawing, etc.)
-- **Creative Aid**: Plot construction, character development, scene description, prompt generation
-- **Developer Mode**: Customizable system prompts for enhanced creative possibilities
+- **Streaming Chat**: Real-time responses, auto-save conversation history, multi-turn context
+- **Tool Calling**: AI can invoke built-in tools (session, character, memory, drawing, etc.)
+- **Developer Mode**: Customizable system prompts for flexible configurations
 
 ### 🎨 Image Generation
-- **Dual Engine**: SD-Forge local generation / Civitai cloud generation
+- **Dual Engine**: SD-Forge local / Civitai cloud (basic implementation)
 - **Model Management**:
   - Auto-scan local models (Checkpoint / LoRA / VAE)
-  - Filter by ecosystem (SD1 / SD2 / SDXL)
-  - Cloud import: Support AIR identifiers (`urn:air:sd1:checkpoint:civitai:123@456`)
+  - Ecosystem filtering (SD1 / SD2 / SDXL)
+  - Cloud import: AIR identifiers (e.g., `urn:air:sd1:checkpoint:civitai:123@456`)
   - Batch sync: Auto-fetch Civitai metadata from SD-Forge
 
-### ⚙️ System Architecture
-- **UI Framework**: Flet (supports desktop and web modes)
-- **LLM Framework**: LangChain + LangGraph (tool calling, streaming chat)
-- **API Support**: MCP (Model Context Protocol) service endpoint
-- **Config Management**: JSON files + environment variables + visual settings page
+### ⚙️ Technical Architecture
+- **UI Framework**: Flet 0.28 (cross-platform desktop and web)
+- **LLM Framework**: LangChain + LangGraph (tool calling, streaming)
+- **API Service**: FastAPI + MCP (Model Context Protocol)
+- **Database**: SQLModel (SQLite)
+- **Config**: JSON + environment variables + visual settings page
 
 ## 🚀 Quick Start
 
@@ -93,153 +93,139 @@ You can also configure visually in the app's "Settings" page with auto-save.
 src/
 ├── app.py              # Flet app entry
 ├── __mcp__.py          # MCP service endpoint (FastAPI)
-├── pages/              # UI pages
-│   ├── chat_page.py        # AI chat page
-│   ├── model_manage_page.py # Model management page
-│   ├── settings_page.py     # Settings page
-│   └── help_page.py         # Help page
-├── components/         # UI components
-│   ├── chat/               # Chat components (message display, input, sidebar)
-│   ├── model_card/         # Model card component
-│   └── editable_text.py    # Editable text component
+├── pages/              # UI pages (chat, model management, settings, help)
+├── components/         # UI components (chat, model cards, etc.)
 ├── services/           # Business logic
-│   ├── llm/                # LLM services (OpenAI/Ollama implementations)
-│   ├── draw/               # Drawing services (SD-Forge/Civitai implementations)
-│   └── model_meta/         # Model metadata (local/Civitai)
-├── routers/            # Tool routers (APIs for LLM to call)
+│   ├── llm/                # LLM services (OpenAI/Ollama/xAI/Anthropic/Google)
+│   ├── draw/               # Drawing services (SD-Forge/Civitai)
+│   ├── model_meta/         # Model metadata (local/Civitai)
+│   └── db/                 # Database services
+├── routers/            # API routers (for LLM tool calling)
 │   ├── session.py          # Session management
 │   ├── actor.py            # Character management
-│   ├── memory.py           # Memory management
+│   ├── memory.py           # Memory system
 │   ├── reader.py           # Novel reader
 │   ├── draw.py             # Drawing tools
-│   ├── file.py             # File management
-│   └── llm.py              # LLM auxiliary tools
+│   └── llm.py              # LLM helpers
 ├── schemas/            # Data models (Pydantic)
-├── settings/           # Config management (LLM/Civitai/SD-Forge/UI)
-├── constants/          # Constants
+├── settings/           # Configuration management
 └── utils/              # Utility functions
+```
+
+## 🔌 MCP Service (Optional)
+
+Provides MCP (Model Context Protocol) API endpoints for external tools.
+
+```bash
+# Start MCP service (development mode)
+uv run uvicorn src.__mcp__:app --reload --host 127.0.0.1 --port 8000
+
+# API docs: http://127.0.0.1:8000/docs
+# MCP endpoint: http://127.0.0.1:8000/mcp
 ```
 
 ## 🎯 User Guide
 
 ### 1. Initial Setup
-Go to "Settings" page and configure necessary parameters:
+After launching, go to "Settings" page:
 - **LLM Settings**: Choose provider, enter API Key, select model
-- **SD-Forge Settings**: Fill in Base URL and installation directory (for local generation)
+- **SD-Forge Settings**: Fill in API URL and installation directory (optional, for local generation)
 - **Civitai Settings**: Enter API Token (optional, for cloud generation and metadata sync)
 
 ### 2. AI Chat
-- Default to "Drawing" page (chat interface)
-- Interact with AI assistant for creative advice or guidance
-- AI automatically calls tool functions (e.g., query model list, generate images)
-- Conversation history auto-saves, recoverable after restart
+- App opens to "Drawing" page (chat interface) by default
+- Chat with AI for creative advice or image generation
+- AI can auto-invoke tool functions (query models, generate images, etc.)
+- Conversation history auto-saves (`storage/data/chat_history/default.json`)
 
 ### 3. Model Management
-- Click "Models" tab to view recognized models
-- **Local Models**: Auto-scan SD-Forge directory
-- **Cloud Import**: Click cloud icon, input AIR identifier
+Click "Models" tab to manage models:
+- **Local Models**: Auto-scan Checkpoint/LoRA/VAE from SD-Forge directory
+- **Cloud Import**: Input AIR identifier to import Civitai models
   - Format: `urn:air:{ecosystem}:{type}:civitai:{model_id}@{version_id}`
-  - Example: `urn:air:sd1:checkpoint:civitai:348620@390021`
-- **Batch Sync**: Settings page → "Import from SD Forge" button
-- **Dual Filters**:
-  - Ecosystem filter: SD1 / SD2 / SDXL
-  - Base model filter: Pony / Illustrious / Standard
-  - Both filters can be applied simultaneously
+  - Example: `urn:air:sdxl:checkpoint:civitai:123456@789012`
+- **Batch Sync**: Settings page → "Import from SD Forge"
+- **Filter Models**: By ecosystem (SD1/SD2/SDXL) or base model
 
-### 4. Image Generation
-- Describe requirements in natural language through AI chat
-- AI automatically selects appropriate models and parameters to call drawing tools
-- Or choose drawing backend in settings page (SD-Forge / Civitai)
+## 💾 Data Storage
 
-## 💾 Data & Storage Paths
+Default data directory: `storage/data` (customizable via environment variables)
 
-Default data directory is `storage/data`. You can override via environment variables:
-
-- `FLET_APP_STORAGE_DATA`: data directory (default: `storage/data`)
-- `FLET_APP_STORAGE_TEMP`: temp directory (default: `storage/temp`)
-
-Structure & important files:
-
-- Database: `storage/data/database.db`
-- Chat history: `storage/data/chat_history/`
-- Model metadata: `storage/data/model_meta/` (with `checkpoint/` and `lora/`)
-- Projects: `storage/data/projects/`
-
-## ✅ Testing & Code Quality
-
-```bash
-# Run tests
-uv run pytest -q
-
-# Lint (pylint configured via pyproject)
-uv run pylint src
 ```
+storage/data/
+├── database.db          # SQLite database
+├── chat_history/        # Conversation history (JSON)
+├── model_meta/          # Model metadata cache
+│   ├── checkpoint/          # Checkpoint metadata and example images
+│   └── lora/                # LoRA metadata and example images
+└── projects/            # Project files (reserved)
+```
+
+Environment variables:
+- `FLET_APP_STORAGE_DATA`: data directory (default `storage/data`)
+- `FLET_APP_STORAGE_TEMP`: temp directory (default `storage/temp`)
 
 ## 🛠️ Development Status
 
-### ✅ Completed
+### ✅ Core Features Complete
 - **AI Chat System**
-  - Streaming output, multi-turn conversations
+  - Streaming chat, multi-turn context
   - Persistent conversation history (JSON)
-  - Tool calling framework (based on LangChain)
-  - Multi-LLM support (OpenAI / xAI / Ollama / Anthropic / Google)
-  - Developer mode and customizable system prompts
+  - Tool calling framework (LangChain + LangGraph)
+  - Support for 5 LLM providers
+  - Developer mode and custom system prompts
   
 - **Model Management**
-  - Local model scanning (Checkpoint / LoRA / VAE)
+  - Local model scanning (Checkpoint/LoRA/VAE)
   - Civitai metadata fetching and caching
-  - AIR identifier parsing and import
-  - Batch sync (scan from SD-Forge and fetch metadata)
-  - Ecosystem filtering (SD1 / SD2 / SDXL)
-  - Example image display
+  - AIR identifier parsing and cloud import
+  - Batch sync from SD-Forge
+  - Ecosystem filtering and example images
   
-- **UI Pages**
-  - Chat page (message display, input, clear conversation)
-  - Model management page (card display, filtering, import, clear)
-  - Settings page (visual config, auto-save, re-initialize)
+- **UI Interface**
+  - Chat page (message display, input, history loading)
+  - Model management page (card display, filtering, import)
+  - Settings page (visual config, auto-save)
   - Help page
   
-- **Configuration Management**
-  - JSON config files + environment variables
-  - Visual settings interface
-  - Auto-save and load
+- **Infrastructure**
+  - Database (SQLModel + SQLite)
+  - MCP API service (FastAPI)
+  - Configuration management (JSON + environment variables)
 
-### 🚧 In Progress / To Be Implemented
-- **Tool Router Implementation** (API framework complete, partial functionality pending)
-  - ✅ Session/Actor/Memory/Reader/Draw/File router definitions
-  - ⏳ Concrete implementations (parse_novel, generate, etc.)
+### 🚧 Partially Complete
+- **Tool Routers**: API framework complete, some features pending
+  - ✅ Session/Actor/Memory management (database operations)
+  - ⏳ Reader novel parser (parsing, chapter management)
+  - ⏳ Draw tools (AI integration)
   
-- **Drawing Functionality**
-  - ✅ SD-Forge service base implementation
-  - ⏳ Complete drawing workflow (parameter config, batch generation)
-  
-- **Novel Reader**
-  - ✅ Router definitions
-  - ⏳ Parsing, chapter management, summary generation
+- **Image Generation**: Basic services complete, workflow pending
+  - ✅ SD-Forge basic service (txt2img)
+  - ✅ Civitai basic service
+  - ⏳ Complete workflow (batch generation, parameter config)
 
 ## 🐛 Troubleshooting
 
 ### LLM Service Not Ready
-- Check if API Key is configured in settings page
-- Verify Base URL is correct (especially for Ollama local service)
-- Click "Reinitialize LLM" button to retry connection
-- Check log output (console) for specific errors
+- Check API Key in "Settings" page
+- Verify Base URL (Ollama local service needs correct address)
+- Click "Reinitialize LLM" button to retry
+- Check console logs for errors
 
 ### Empty Model List
-- Check if SD-Forge installation directory path is correct
-- Ensure `models/Stable-diffusion/` and `models/Lora/` folders exist
+- Check SD-Forge installation path
+- Ensure directory contains `models/Stable-diffusion/` and `models/Lora/`
 - Click refresh button on models page
 
 ### Civitai Import Failed
 - Check network connection (requires access to civitai.com)
-- Verify AIR format: must include `@{version_id}` part
-- Correct format: `urn:air:sd1:checkpoint:civitai:348620@390021`
-- For batch sync, ensure SD-Forge directory is configured
+- Verify AIR format: `urn:air:{ecosystem}:{type}:civitai:{model_id}@{version_id}`
+- Ensure `@{version_id}` part is included
 
 ### Conversation History Lost
-- Conversation history saved in `storage/data/chat_history/default.json`
-- For backup, copy this file
-- Cannot recover after clearing conversation, use with caution
+- History saved in `storage/data/chat_history/default.json`
+- Can manually backup this file
+- Cannot recover after clearing
 
 ## 📄 License
 
@@ -248,6 +234,6 @@ See [LICENSE](LICENSE)
 ## 🙏 Acknowledgements
 
 - [Flet](https://flet.dev/) - Modern Python UI framework
-- [Stable Diffusion WebUI](https://github.com/AUTOMATIC1111/stable-diffusion-webui) / [SD-Forge](https://github.com/lllyasviel/stable-diffusion-webui-forge) - Image generation engine
+- [SD-Forge](https://github.com/lllyasviel/stable-diffusion-webui-forge) / [SD-WebUI](https://github.com/AUTOMATIC1111/stable-diffusion-webui) - Image generation
 - [Civitai](https://civitai.com/) - AI model community
 - [LangChain](https://www.langchain.com/) - LLM application framework

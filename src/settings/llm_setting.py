@@ -62,6 +62,13 @@ class LlmSettings(BaseModel):
         description="系统提示词：定义 AI 助手的角色和行为"
     )
 
+    summary_epoch: int = Field(
+        default=100,
+        ge=10,
+        le=1000,
+        description="对话总结周期：每隔多少轮对话进行一次总结（10-1000）"
+    )
+
     class Config:
         json_schema_extra = {
             "examples": [

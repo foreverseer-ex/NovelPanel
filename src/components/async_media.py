@@ -136,6 +136,7 @@ class AsyncMedia(ft.Container):
         loading_size: int = 20,
         loading_text: str = "加载中",
         loading_text_size: int = 10,
+        privacy_mode: bool = False,
     ):
         """初始化异步媒体组件。
         
@@ -148,15 +149,40 @@ class AsyncMedia(ft.Container):
         :param loading_size: loading 环尺寸
         :param loading_text: loading 文本
         :param loading_text_size: loading 文本大小
+        :param privacy_mode: 隐私模式，启用时不自动加载图片
         
         注意：图片填充模式固定为 CONTAIN，以保持完整图片不裁剪；视频自动循环播放
         """
-        # 初始化为 loading 状态
-        # 根据是否有文本决定显示内容
-        loading_controls = [ft.ProgressRing(width=loading_size, height=loading_size, stroke_width=2)]
-        if loading_text:  # 只有文本非空时才添加
-            loading_controls.append(
-                ft.Text(loading_text, size=loading_text_size, color=ft.Colors.GREY_600)
+        # 保存配置
+        self.model_meta = model_meta
+        self.index = index
+        self._loaded = False
+        self.privacy_mode = privacy_mode
+        
+        # 根据隐私模式决定初始显示内容
+        if privacy_mode:
+            # 隐私模式：显示占位图标
+            initial_content = ft.Column(
+                controls=[
+                    ft.Icon(ft.Icons.HIDE_IMAGE_OUTLINED, size=40, color=ft.Colors.GREY_600),
+                    ft.Text("隐私模式", size=10, color=ft.Colors.GREY_600),
+                ],
+                horizontal_alignment=ft.CrossAxisAlignment.CENTER,
+                alignment=ft.MainAxisAlignment.CENTER,
+                spacing=4,
+            )
+        else:
+            # 正常模式：显示 loading 状态
+            loading_controls = [ft.ProgressRing(width=loading_size, height=loading_size, stroke_width=2)]
+            if loading_text:  # 只有文本非空时才添加
+                loading_controls.append(
+                    ft.Text(loading_text, size=loading_text_size, color=ft.Colors.GREY_600)
+                )
+            initial_content = ft.Column(
+                controls=loading_controls,
+                horizontal_alignment=ft.CrossAxisAlignment.CENTER,
+                alignment=ft.MainAxisAlignment.CENTER,
+                spacing=4,
             )
         
         super().__init__(
@@ -165,19 +191,9 @@ class AsyncMedia(ft.Container):
             bgcolor=None,  # 透明背景
             border_radius=border_radius,
             alignment=ft.alignment.center,
-            content=ft.Column(
-                controls=loading_controls,
-                horizontal_alignment=ft.CrossAxisAlignment.CENTER,
-                alignment=ft.MainAxisAlignment.CENTER,  # 垂直居中
-                spacing=4,
-            ),
+            content=initial_content,
             on_click=on_click,
         )
-        
-        # 保存配置
-        self.model_meta = model_meta
-        self.index = index
-        self._loaded = False
     
     def _is_video(self, path: Path) -> bool:
         """判断文件是否为视频。
@@ -321,8 +337,8 @@ class AsyncMedia(ft.Container):
             self.page.update()
     
     def did_mount(self):
-        """组件挂载后自动触发加载。"""
+        """组件挂载后自动触发加载（隐私模式下不自动加载）。"""
         super().did_mount()
-        if self.page:
+        if self.page and not self.privacy_mode:
             self.page.run_task(self.load)
 

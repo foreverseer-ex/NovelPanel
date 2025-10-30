@@ -62,10 +62,12 @@ GRID_COL_3 = {"xs": 12, "sm": 6, "md": 4}
 
 # ==================== 特定组件配置 ====================
 
-# 模型卡片（需要特殊高度控制）
-CARD_INFO_HEIGHT = 130      # 卡片信息区域总高度
-CARD_TITLE_HEIGHT = 50      # 标题区域固定高度
-CARD_TITLE_MAX_LINES = 2    # 标题最多行数
+# 卡片尺寸（模型卡片、Actor 卡片等）
+CARD_WIDTH = 240           # 卡片宽度
+CARD_HEIGHT = 320          # 卡片高度
+CARD_INFO_HEIGHT = 130     # 卡片信息区域总高度
+CARD_TITLE_HEIGHT = 50     # 标题区域固定高度
+CARD_TITLE_MAX_LINES = 2   # 标题最多行数
 
 # 详情页标签宽度
 DETAIL_LABEL_WIDTH = 100

@@ -3,6 +3,7 @@
 从本地 SD-Forge 目录读取与缓存模型元数据。
 """
 import asyncio
+import shutil
 from pathlib import Path
 from typing import Optional
 
@@ -255,6 +256,7 @@ class LocalModelModelMetaService(AbstractModelMetaService):
             url=model_meta.url,
             examples=localized_examples,
             ecosystem=model_meta.ecosystem,
+            web_page_url=model_meta.web_page_url,
         )
         
         # 保存元数据到本地
@@ -262,6 +264,50 @@ class LocalModelModelMetaService(AbstractModelMetaService):
         logger.success(f"已保存模型元数据: {model_meta.name} ({model_meta.type})")
         
         return localized_meta
+    
+    def delete(self, model_meta: ModelMeta) -> bool:
+        """
+        删除模型元数据及其关联的示例图片。
+        
+        此方法会：
+        1. 删除元数据目录（包括 metadata.json 和所有示例图片）
+        2. 从内存缓存中移除该模型
+        
+        :param model_meta: 要删除的模型元数据
+        :return: 删除成功返回 True，失败返回 False
+        """
+        try:
+            # 确定元数据目录
+            if model_meta.type == ModelType.CHECKPOINT:
+                meta_dir = checkpoint_meta_home / Path(model_meta.filename).stem
+                cache_list = self.sd_list
+            elif model_meta.type == ModelType.LORA:
+                meta_dir = lora_meta_home / Path(model_meta.filename).stem
+                cache_list = self.lora_list
+            else:
+                logger.error(f"不支持的模型类型: {model_meta.type}")
+                return False
+            
+            # 删除目录（包括所有内容）
+            if meta_dir.exists():
+                shutil.rmtree(meta_dir)
+                logger.info(f"已删除元数据目录: {meta_dir}")
+            else:
+                logger.warning(f"元数据目录不存在: {meta_dir}")
+            
+            # 从内存缓存中移除
+            try:
+                cache_list.remove(model_meta)
+                logger.debug(f"已从缓存中移除: {model_meta.name}")
+            except ValueError:
+                logger.warning(f"模型不在缓存中: {model_meta.name}")
+            
+            logger.success(f"已删除模型元数据: {model_meta.name} ({model_meta.type})")
+            return True
+            
+        except Exception as e:
+            logger.exception(f"删除模型元数据失败: {model_meta.name}")
+            return False
     
     # ==================== 实现基类接口 ====================
     

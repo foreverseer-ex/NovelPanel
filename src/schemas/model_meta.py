@@ -4,18 +4,20 @@
 （ModelMeta，通常由 Civitai 获取并在本地缓存）。
 """
 from pathlib import Path
-from typing import Literal
+from typing import Literal, TYPE_CHECKING
 import httpx
 
 from pydantic import BaseModel
-from schemas.draw import DrawArgs
-from utils.civitai import create_air
+from utils.civitai import AIR
+
+if TYPE_CHECKING:
+    from .draw import DrawArgs
 
 
 class Example(BaseModel):
     """单个示例图片引用及其对应生成参数。"""
     url: str | None = None
-    args: DrawArgs
+    args: 'DrawArgs'
 
     @property
     def filename(self) -> Path | None:
@@ -47,6 +49,7 @@ class ModelMeta(BaseModel):
     sha256: str
     trained_words: list[str] = []
     url: str | None = None  # 下载链接（可选）
+    web_page_url: str | None = None  # 模型网页链接（如 Civitai 页面）
     examples: list[Example] = []
 
     @property
@@ -68,10 +71,15 @@ class ModelMeta(BaseModel):
         - Checkpoint: urn:air:sd1:checkpoint:civitai:4384@128713
         - LoRA: urn:air:sdxl:lora:civitai:328553@368189
         """
-
-        return create_air(
+        air = AIR(
             ecosystem=self.ecosystem,
-            type_str=self.type,
+            type=self.type,
             model_id=self.model_id,
-            version_id=self.version_id if self.version_id > 0 else None,
+            version_id=self.version_id,
         )
+        return str(air)
+
+
+# 延迟解析 forward references
+from .draw import DrawArgs  # noqa: E402, F811
+Example.model_rebuild()

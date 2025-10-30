@@ -7,8 +7,9 @@ from .chat import (
     TextMessage, ToolCall, MessageContent,
     ImageChoice, TextChoice, Choice
 )
-from .draw import DrawArgs
+from .draw import DrawArgs, Job, BatchJob
 from .model_meta import Example, ModelMeta
+from .novel import NovelContent
 
 __all__ = [
     "ChatMessage",
@@ -20,7 +21,10 @@ __all__ = [
     "TextChoice",
     "Choice",
     "DrawArgs",
+    "Job",
+    "BatchJob",
     "Example",
     "ModelMeta",
+    "NovelContent",
 ]
 

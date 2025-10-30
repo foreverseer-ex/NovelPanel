@@ -2,6 +2,10 @@
 应用主视图，包含左侧导航栏（NavigationRail）与右侧主内容区。
 """
 import flet as ft
+from pages.home_page import HomePage
+from pages.memory_manage_page import MemoryManagePage
+from pages.actor_manage_page import ActorManagePage
+from pages.content_manage_page import ContentManagePage
 from pages.model_manage_page import ModelManagePage
 from pages.settings_page import SettingsPage
 from pages.chat_page import ChatPage
@@ -11,10 +15,15 @@ from settings import app_settings
 class AppView(ft.Row):
     """应用主视图：左侧 NavigationRail + 右侧可切换的主内容区。
 
-    包含三个目的地：
-    - AI对话页面
+    包含八个目的地：
+    - 主页（会话管理）
+    - 创作（AI对话）
+    - 记忆管理
+    - Actor 管理（角色、地点、组织等）
+    - 内容管理
     - 模型管理页面
     - 设置页面
+    - 帮助页面
     """
     def __init__(self, page: ft.Page):
         """初始化应用主视图。
@@ -26,7 +35,7 @@ class AppView(ft.Row):
         """
         super().__init__()
         self.page = page
-        self.current_page = 0  # 0: AI对话, 1: 模型管理, 2: 设置, 3: 帮助
+        self.current_page = 0  # 0: 主页, 1: 创作, 2: 记忆, 3: Actor, 4: 内容, 5: 模型, 6: 设置, 7: 帮助
         self.expand = True
         self.main_area = ft.Container(
             expand=True,
@@ -37,12 +46,20 @@ class AppView(ft.Row):
     def _render_content(self):
         """根据当前选中的页面索引渲染主内容区。"""
         if self.current_page == 0:
-            self.main_area.content = ChatPage(self.page)
+            self.main_area.content = HomePage(self.page)
         elif self.current_page == 1:
-            self.main_area.content = ModelManagePage()
+            self.main_area.content = ChatPage(self.page)
         elif self.current_page == 2:
-            self.main_area.content = SettingsPage()
+            self.main_area.content = MemoryManagePage(self.page)
         elif self.current_page == 3:
+            self.main_area.content = ActorManagePage()
+        elif self.current_page == 4:
+            self.main_area.content = ContentManagePage(self.page)
+        elif self.current_page == 5:
+            self.main_area.content = ModelManagePage()
+        elif self.current_page == 6:
+            self.main_area.content = SettingsPage()
+        elif self.current_page == 7:
             self.main_area.content = HelpPage(self.page)
         else:
             self.main_area.content = ft.Container()
@@ -72,9 +89,29 @@ class AppView(ft.Row):
             extended=False,
             destinations=[
                 ft.NavigationRailDestination(
+                    icon=ft.Icons.HOME_OUTLINED,
+                    selected_icon=ft.Icons.HOME,
+                    label="主页",
+                ),
+                ft.NavigationRailDestination(
                     icon=ft.Icons.BRUSH_OUTLINED,
                     selected_icon=ft.Icons.BRUSH,
-                    label="绘画",
+                    label="创作",
+                ),
+                ft.NavigationRailDestination(
+                    icon=ft.Icons.MEMORY_OUTLINED,
+                    selected_icon=ft.Icons.MEMORY,
+                    label="记忆",
+                ),
+                ft.NavigationRailDestination(
+                    icon=ft.Icons.PEOPLE_OUTLINED,
+                    selected_icon=ft.Icons.PEOPLE,
+                    label="角色",
+                ),
+                ft.NavigationRailDestination(
+                    icon=ft.Icons.EDIT_NOTE_OUTLINED,
+                    selected_icon=ft.Icons.EDIT_NOTE,
+                    label="内容",
                 ),
                 ft.NavigationRailDestination(
                     icon=ft.Icons.LIST_ALT_OUTLINED,

@@ -1,189 +1,311 @@
 """
-角色管理的路由。
+Actor 管理的路由。
 
-简化设计：基础的 CRUD 操作和预定义标签查询。
+Actor 可以是角色、地点、组织等小说要素。
+提供 CRUD 操作、示例图管理和预定义标签查询。
 """
 import uuid
 from typing import List, Optional, Dict
-from fastapi import APIRouter, Query, HTTPException
+from fastapi import APIRouter, HTTPException
 from loguru import logger
 
-from schemas.actor import Character
+from schemas.actor import Actor, ActorExample
+from schemas.draw import DrawArgs
 from constants.actor import character_tags_description
-from services.db import CharacterService
+from services.db import ActorService
 
 router = APIRouter(
     prefix="/actor",
-    tags=["角色管理"],
-    responses={404: {"description": "角色不存在"}},
+    tags=["Actor管理"],
+    responses={404: {"description": "Actor不存在"}},
 )
 
 
-# ==================== 角色基本操作 ====================
+# ==================== Actor 基本操作 ====================
 
-@router.post("/create", response_model=Character, summary="创建角色")
+@router.post("/create", response_model=Actor, summary="创建Actor")
 async def create_actor(
     session_id: str,
     name: str,
+    desc: str = "",
+    color: str = "#808080",
     tags: Optional[Dict[str, str]] = None
-) -> Character:
+) -> Actor:
     """
-    创建新角色。
+    创建新 Actor。
     
     Args:
         session_id: 会话ID
-        name: 角色名称
-        tags: 角色标签字典（可选，建议使用 constants.actor.character_tags_description 中定义的键）
+        name: 名称
+        desc: 描述
+        color: 卡片颜色（如 #FF69B4，女性角色建议粉色）
+        tags: 标签字典（可选，建议使用 constants.actor.character_tags_description 中定义的键）
     
     Returns:
-        创建的角色对象（包含生成的 character_id）
-    
-    实现要点：
-    - 生成唯一 character_id
-    - tags 字典的值都应该是纯文本字符串
-    - 列表类型使用逗号分隔（如：别名、显著特征等）
+        创建的 Actor 对象（包含生成的 actor_id）
     """
-    # 生成唯一角色ID
-    character_id = str(uuid.uuid4())
+    # 生成唯一 Actor ID
+    actor_id = str(uuid.uuid4())
     
-    # 创建角色对象
-    character = Character(
-        character_id=character_id,
+    # 创建 Actor 对象
+    actor = Actor(
+        actor_id=actor_id,
         session_id=session_id,
         name=name,
-        tags=tags or {}
+        desc=desc,
+        color=color,
+        tags=tags or {},
+        examples=[]
     )
     
     # 保存到数据库
-    created_character = CharacterService.create(character)
-    logger.info(f"创建角色: {name} (session: {session_id})")
+    created_actor = ActorService.create(actor)
+    logger.info(f"创建 Actor: {name} (session: {session_id})")
     
-    return created_character
+    return created_actor
 
 
-@router.get("/{character_id}", response_model=Character, summary="获取角色信息")
+@router.get("/{actor_id}", response_model=Actor, summary="获取Actor信息")
 async def get_actor(
     session_id: str,
-    character_id: str
-) -> Character:
+    actor_id: str
+) -> Actor:
     """
-    获取角色详细信息。
+    获取 Actor 详细信息。
     
     Args:
         session_id: 会话ID
-        character_id: 角色ID
+        actor_id: Actor ID
     
     Returns:
-        角色对象
+        Actor 对象
     """
-    character = CharacterService.get(character_id)
-    if not character or character.session_id != session_id:
-        raise HTTPException(status_code=404, detail=f"角色不存在: {character_id}")
+    actor = ActorService.get(actor_id)
+    if not actor or actor.session_id != session_id:
+        raise HTTPException(status_code=404, detail=f"Actor 不存在: {actor_id}")
     
-    return character
+    return actor
 
 
-@router.get("/", response_model=List[Character], summary="列出所有角色")
+@router.get("/", response_model=List[Actor], summary="列出所有Actor")
 async def list_actors(
     session_id: str,
-    limit: int = Query(100, ge=1, le=1000, description="返回数量")
-) -> List[Character]:
+    limit: int = 100
+) -> List[Actor]:
     """
-    列出会话的所有角色。
+    列出会话的所有 Actor。
     
     Args:
         session_id: 会话ID
         limit: 返回数量限制（默认100，最大1000）
     
     Returns:
-        角色列表
+        Actor 列表
     """
-    # 获取所有角色
-    characters = CharacterService.list(limit=limit)
+    # 获取会话的所有 Actor
+    actors = ActorService.list_by_session(session_id, limit=limit)
     
-    # 过滤：只返回属于该会话的角色
-    characters = [c for c in characters if c.session_id == session_id]
-    
-    return characters
+    return actors
 
 
-@router.put("/{character_id}", response_model=Character, summary="更新角色")
+@router.put("/{actor_id}", response_model=Actor, summary="更新Actor")
 async def update_actor(
     session_id: str,
-    character_id: str,
+    actor_id: str,
     name: Optional[str] = None,
+    desc: Optional[str] = None,
+    color: Optional[str] = None,
     tags: Optional[Dict[str, str]] = None
-) -> Character:
+) -> Actor:
     """
-    更新角色信息。
+    更新 Actor 信息。
     
     Args:
         session_id: 会话ID
-        character_id: 角色ID
+        actor_id: Actor ID
         name: 新名称（可选）
+        desc: 新描述（可选）
+        color: 新颜色（可选）
         tags: 新标签字典（可选，会覆盖原有 tags）
     
     Returns:
-        更新后的角色对象
-    
-    实现要点：
-    - 只更新提供的字段
-    - tags 如果提供，会完全覆盖原有的 tags
+        更新后的 Actor 对象
     """
-    # 先检查角色是否存在且属于该会话
-    character = CharacterService.get(character_id)
-    if not character or character.session_id != session_id:
-        raise HTTPException(status_code=404, detail=f"角色不存在: {character_id}")
+    # 先检查 Actor 是否存在且属于该会话
+    actor = ActorService.get(actor_id)
+    if not actor or actor.session_id != session_id:
+        raise HTTPException(status_code=404, detail=f"Actor 不存在: {actor_id}")
     
     # 构建更新字典
     update_data = {}
     if name is not None:
         update_data["name"] = name
+    if desc is not None:
+        update_data["desc"] = desc
+    if color is not None:
+        update_data["color"] = color
     if tags is not None:
         update_data["tags"] = tags
     
-    # 更新角色
-    updated_character = CharacterService.update(character_id, **update_data)
-    if not updated_character:
-        raise HTTPException(status_code=404, detail=f"角色不存在: {character_id}")
+    # 更新 Actor
+    updated_actor = ActorService.update(actor_id, **update_data)
+    if not updated_actor:
+        raise HTTPException(status_code=404, detail=f"Actor 不存在: {actor_id}")
     
-    return updated_character
+    return updated_actor
 
 
-@router.delete("/{character_id}", summary="删除角色")
+@router.delete("/{actor_id}", summary="删除Actor")
 async def remove_actor(
     session_id: str,
-    character_id: str
+    actor_id: str
 ) -> dict:
     """
-    删除角色。
+    删除 Actor。
     
     Args:
         session_id: 会话ID
-        character_id: 角色ID
+        actor_id: Actor ID
     
     Returns:
         删除结果
     """
-    # 先检查角色是否存在且属于该会话
-    character = CharacterService.get(character_id)
-    if not character or character.session_id != session_id:
-        raise HTTPException(status_code=404, detail=f"角色不存在: {character_id}")
+    # 先检查 Actor 是否存在且属于该会话
+    actor = ActorService.get(actor_id)
+    if not actor or actor.session_id != session_id:
+        raise HTTPException(status_code=404, detail=f"Actor 不存在: {actor_id}")
     
-    # 删除角色
-    success = CharacterService.delete(character_id)
+    # 删除 Actor
+    success = ActorService.delete(actor_id)
     if not success:
-        raise HTTPException(status_code=404, detail=f"角色不存在: {character_id}")
+        raise HTTPException(status_code=404, detail=f"Actor 不存在: {actor_id}")
     
-    logger.info(f"删除角色: {character_id} (session: {session_id})")
-    return {"message": "角色删除成功", "character_id": character_id}
+    logger.info(f"删除 Actor: {actor_id} (session: {session_id})")
+    return {"message": "Actor 删除成功", "actor_id": actor_id}
+
+
+# ==================== 示例图管理 ====================
+
+@router.post("/{actor_id}/example", response_model=Actor, summary="添加示例图")
+async def add_example(
+    session_id: str,
+    actor_id: str,
+    title: str,
+    desc: str,
+    image_path: str,
+    # DrawArgs 参数
+    model: str,
+    prompt: str,
+    negative_prompt: str = "",
+    steps: int = 20,
+    cfg_scale: float = 7.0,
+    sampler: str = "Euler a",
+    seed: int = -1,
+    width: int = 512,
+    height: int = 512,
+    clip_skip: Optional[int] = 2,
+    vae: Optional[str] = None,
+    loras: Optional[Dict[str, float]] = None
+) -> Actor:
+    """
+    为 Actor 添加示例图。
+    
+    Args:
+        session_id: 会话ID（用于权限校验）
+        actor_id: Actor ID
+        title: 示例标题
+        desc: 示例说明
+        image_path: 图片相对路径
+        model: 模型名称
+        prompt: 正面提示词
+        negative_prompt: 负面提示词
+        steps: 采样步数
+        cfg_scale: CFG 权重
+        sampler: 采样器
+        seed: 随机种子
+        width: 图片宽度
+        height: 图片高度
+        clip_skip: CLIP skip
+        vae: VAE 模型
+        loras: LoRA 字典
+    
+    Returns:
+        更新后的 Actor 对象
+    """
+    # 权限校验
+    actor = ActorService.get(actor_id)
+    if not actor or actor.session_id != session_id:
+        raise HTTPException(status_code=404, detail=f"Actor 不存在: {actor_id}")
+    
+    # 构建 DrawArgs
+    draw_args = DrawArgs(
+        model=model,
+        prompt=prompt,
+        negative_prompt=negative_prompt,
+        steps=steps,
+        cfg_scale=cfg_scale,
+        sampler=sampler,
+        seed=seed,
+        width=width,
+        height=height,
+        clip_skip=clip_skip,
+        vae=vae,
+        loras=loras
+    )
+    
+    # 构建 ActorExample
+    example = ActorExample(
+        title=title,
+        desc=desc,
+        draw_args=draw_args,
+        image_path=image_path
+    )
+    
+    # 添加示例
+    updated = ActorService.add_example(actor_id, example)
+    if not updated:
+        raise HTTPException(status_code=500, detail=f"添加示例失败: {actor_id}")
+    
+    logger.success(f"为 Actor 添加示例成功: {actor_id}, title={title}")
+    return updated
+
+
+@router.delete("/{actor_id}/example/{example_index}", response_model=Actor, summary="删除示例图")
+async def remove_example(
+    session_id: str,
+    actor_id: str,
+    example_index: int
+) -> Actor:
+    """
+    删除 Actor 的指定示例图。
+    
+    Args:
+        session_id: 会话ID（用于权限校验）
+        actor_id: Actor ID
+        example_index: 示例图索引
+    
+    Returns:
+        更新后的 Actor 对象
+    """
+    # 权限校验
+    actor = ActorService.get(actor_id)
+    if not actor or actor.session_id != session_id:
+        raise HTTPException(status_code=404, detail=f"Actor 不存在: {actor_id}")
+    
+    # 删除示例
+    updated = ActorService.remove_example(actor_id, example_index)
+    if not updated:
+        raise HTTPException(status_code=500, detail=f"删除示例失败: {actor_id}, index={example_index}")
+    
+    logger.success(f"删除 Actor 示例成功: {actor_id}, index={example_index}")
+    return updated
 
 
 # ==================== 预定义标签查询 ====================
 
 @router.get("/tag-description", summary="获取预定义标签的描述")
 async def get_tag_description(
-    tag: str = Query(..., description="标签名")
+    tag: str
 ) -> Dict[str, str]:
     """
     获取预定义标签的描述。
@@ -196,10 +318,6 @@ async def get_tag_description(
     
     Raises:
         404: 标签名不在预定义列表中
-    
-    实现要点：
-    - 从 constants.actor.character_tags_description 查找
-    - 如果标签不存在，返回 404
     """
     if tag not in character_tags_description:
         raise HTTPException(status_code=404, detail=f"标签名 '{tag}' 不在预定义列表中")
@@ -213,20 +331,9 @@ async def get_tag_description(
 @router.get("/tag-descriptions", summary="获取所有预定义标签和描述")
 async def get_all_tag_descriptions() -> Dict[str, str]:
     """
-    获取所有预定义的角色标签和描述。
+    获取所有预定义的 Actor 标签和描述。
     
     Returns:
         所有预定义的标签字典
-    
-    实现要点：
-    - 返回 constants.actor.character_tags_description 完整字典
-    
-    示例返回：
-    {
-        "别名": "角色的其他称呼，逗号分隔...",
-        "角色定位": "角色在故事中的定位...",
-        "性别": "角色性别...",
-        ...
-    }
     """
     return character_tags_description

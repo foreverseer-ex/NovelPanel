@@ -44,6 +44,18 @@ class SettingsPage(ft.Column):
             'llm_temperature': app_settings.llm.temperature,
         }
         
+        # UI 设置字段
+        ui_fields: Any = app_settings.ui.model_fields
+        
+        self.default_username_field = ft.TextField(
+            label="默认用户名",
+            value=app_settings.ui.default_username,
+            hint_text="留空将自动使用计算机名",
+            width=300,
+            on_blur=lambda _: self._save_default_username(),
+            on_submit=lambda _: self._save_default_username(),
+        )
+        
         # Civitai 设置字段
         civitai_fields: Any = app_settings.civitai.model_fields
         
@@ -206,6 +218,16 @@ class SettingsPage(ft.Column):
             on_blur=lambda _: self._save_llm_system_prompt(),
         )
         
+        self.llm_summary_epoch_field = ft.TextField(
+            label="对话总结周期",
+            value=str(app_settings.llm.summary_epoch),
+            hint_text=llm_fields['summary_epoch'].description,
+            keyboard_type=ft.KeyboardType.NUMBER,
+            width=200,
+            on_blur=lambda _: self._save_llm_summary_epoch(),
+            on_submit=lambda _: self._save_llm_summary_epoch(),
+        )
+        
         # LLM 重新初始化按钮
         self.llm_reinit_button = ft.ElevatedButton(
             text="重新初始化 LLM",
@@ -243,6 +265,20 @@ class SettingsPage(ft.Column):
             ),
             ft.Divider(),
             
+            # UI 设置区域
+            ft.Text("界面设置", size=18, weight=ft.FontWeight.BOLD),
+            ft.Container(
+                content=ft.Column(
+                    controls=[
+                        self.default_username_field,
+                    ],
+                    spacing=10,
+                ),
+                padding=ft.padding.only(left=20),
+            ),
+            
+            ft.Divider(),
+            
             # Draw 设置区域
             ft.Text("绘图服务设置", size=18, weight=ft.FontWeight.BOLD),
             ft.Container(
@@ -275,6 +311,7 @@ class SettingsPage(ft.Column):
                         self.llm_temperature_field,
                         self.llm_developer_mode_switch,
                         self.llm_system_prompt_field,
+                        self.llm_summary_epoch_field,
                         self.llm_reinit_button,
                     ],
                     spacing=10,
@@ -319,7 +356,59 @@ class SettingsPage(ft.Column):
                 ),
                 padding=ft.padding.only(left=20),
             ),
+            
+            ft.Divider(),
+            
+            # 危险操作区域
+            ft.Text("危险操作", size=18, weight=ft.FontWeight.BOLD, color=ft.Colors.RED_700),
+            ft.Container(
+                content=ft.Column(
+                    controls=[
+                        ft.Container(
+                            content=ft.Text(
+                                "⚠️ 以下操作不可逆，请谨慎操作",
+                                size=14,
+                                color=ft.Colors.RED_400,
+                                italic=True,
+                            ),
+                            padding=ft.padding.only(bottom=10),
+                        ),
+                        ft.ElevatedButton(
+                            text="重置应用",
+                            icon=ft.Icons.RESTART_ALT,
+                            on_click=self._on_reset_app,
+                            color=ft.Colors.WHITE,
+                            bgcolor=ft.Colors.RED_700,
+                            width=200,
+                        ),
+                        ft.Text(
+                            "将删除所有数据和配置，重启应用",
+                            size=12,
+                            color=ft.Colors.GREY_600,
+                            italic=True,
+                        ),
+                    ],
+                    spacing=10,
+                ),
+                padding=ft.padding.only(left=20),
+            ),
         ]
+    
+    # UI 设置保存方法
+    def _save_default_username(self):
+        """保存默认用户名。"""
+        import socket
+        
+        new_value = self.default_username_field.value.strip()
+        if not new_value:
+            # 如果用户清空了用户名，自动恢复为计算机名
+            new_value = socket.gethostname()
+            self.default_username_field.value = new_value
+            self.default_username_field.update()
+            self._show_success(f"已恢复为默认用户名: {new_value}")
+        
+        app_settings.ui.default_username = new_value
+        self._save_config()
     
     # Civitai 设置保存方法
     def _save_civitai_api_token(self):
@@ -516,6 +605,24 @@ class SettingsPage(ft.Column):
         app_settings.llm.system_prompt = new_value
         self._save_config()
     
+    def _save_llm_summary_epoch(self):
+        """保存对话总结周期配置。"""
+        try:
+            new_value = int(self.llm_summary_epoch_field.value)
+            if new_value < 10 or new_value > 1000:
+                self._show_error("对话总结周期必须在 10-1000 之间")
+                self.llm_summary_epoch_field.value = str(app_settings.llm.summary_epoch)
+                self.llm_summary_epoch_field.update()
+                return
+            
+            app_settings.llm.summary_epoch = new_value
+            self._save_config()
+            self._show_success(f"对话总结周期已设置为 {new_value}")
+        except ValueError:
+            self._show_error("请输入有效的数字")
+            self.llm_summary_epoch_field.value = str(app_settings.llm.summary_epoch)
+            self.llm_summary_epoch_field.update()
+    
     def _on_llm_reinit_click(self, _e):
         """处理 LLM 重新初始化按钮点击。"""
         if self.page:
@@ -661,4 +768,125 @@ class SettingsPage(ft.Column):
         :param duration: 显示时长（毫秒）
         """
         self._show_toast(message, ft.Colors.RED_700, duration)
+    
+    def _on_reset_app(self, e):
+        """重置应用按钮点击事件"""
+        from pathlib import Path
+        import sys
+        from services.db import drop_all_tables, init_db
+        
+        logger.info("点击重置应用按钮")
+        
+        # 创建重置确认对话框
+        dialog = ResetAppConfirmDialog(on_confirm=self._on_reset_confirmed)
+        
+        # 显示对话框
+        self.page.open(dialog)
+    
+    def _on_reset_confirmed(self):
+        """重置确认后的回调"""
+        try:
+            logger.warning("开始重置应用...")
+            
+            # DROP 所有数据库表
+            from services.db import drop_all_tables, init_db
+            drop_all_tables()
+            logger.success("已删除所有数据库表")
+            
+            # 重新创建表结构
+            init_db()
+            logger.success("已重新创建数据库表结构")
+            
+            # 删除 config.json
+            config_path = Path("config.json")
+            if config_path.exists():
+                config_path.unlink()
+                logger.success(f"已删除配置文件: {config_path}")
+            
+            # 显示提示信息
+            self._show_success("应用已重置，程序将退出，请重新启动", duration=3000)
+            
+            # 延迟退出以显示提示信息
+            import time
+            import sys
+            time.sleep(1)
+            
+            # 退出应用
+            logger.warning("应用即将退出...")
+            sys.exit(0)
+            
+        except Exception as ex:
+            logger.exception(f"重置应用失败: {ex}")
+            self._show_error(f"重置应用失败: {ex}")
+
+
+# ============================================================================
+# Dialog 类定义
+# ============================================================================
+
+class ResetAppConfirmDialog(ft.AlertDialog):
+    """重置应用确认对话框"""
+    
+    def __init__(self, on_confirm: callable):
+        """
+        初始化重置确认对话框
+        
+        Args:
+            on_confirm: 确认回调函数，无参数
+        """
+        self.on_confirm = on_confirm
+        
+        super().__init__(
+            modal=True,
+            title=ft.Text("⚠️ 确认重置应用", size=20, weight=ft.FontWeight.BOLD, color=ft.Colors.RED_700),
+            content=ft.Container(
+                content=ft.Column(
+                    [
+                        ft.Text(
+                            "此操作将：",
+                            size=16,
+                            weight=ft.FontWeight.BOLD,
+                        ),
+                        ft.Text("• 删除所有会话和小说数据"),
+                        ft.Text("• 删除所有配置信息"),
+                        ft.Text("• 程序将退出，需手动重启"),
+                        ft.Container(height=10),
+                        ft.Text(
+                            "此操作不可恢复！确定要继续吗？",
+                            size=14,
+                            color=ft.Colors.RED_400,
+                            weight=ft.FontWeight.BOLD,
+                        ),
+                    ],
+                    spacing=5,
+                    tight=True,
+                ),
+                width=400,
+            ),
+            actions=[
+                ft.TextButton("取消", on_click=self._on_cancel),
+                ft.ElevatedButton(
+                    "确认重置",
+                    on_click=self._on_confirm_click,
+                    color=ft.Colors.WHITE,
+                    bgcolor=ft.Colors.RED_700,
+                ),
+            ],
+            actions_alignment=ft.MainAxisAlignment.END,
+        )
+    
+    def _on_confirm_click(self, e):
+        """确认重置"""
+        # 关闭对话框
+        self.open = False
+        self.update()
+        
+        # 调用确认回调
+        if self.on_confirm:
+            self.on_confirm()
+    
+    def _on_cancel(self, e):
+        """取消重置"""
+        self.open = False
+        self.update()
 

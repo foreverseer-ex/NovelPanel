@@ -8,7 +8,7 @@
 import uuid
 from datetime import datetime
 from typing import List, Optional, Literal
-from fastapi import APIRouter, Query, HTTPException
+from fastapi import APIRouter, HTTPException
 from loguru import logger
 
 from schemas.session import Session
@@ -93,9 +93,9 @@ async def get_session(session_id: str) -> Session:
 
 @router.get("/", response_model=List[Session], summary="列出所有会话")
 async def list_sessions(
-    limit: int = Query(50, ge=1, le=100, description="返回数量限制"),
-    offset: int = Query(0, ge=0, description="偏移量"),
-    status_filter: Optional[str] = Query(None, description="状态过滤")
+    limit: int = 50,
+    offset: int = 0,
+    status_filter: Optional[str] = None
 ) -> List[Session]:
     """
     列出所有会话，支持分页和状态过滤。

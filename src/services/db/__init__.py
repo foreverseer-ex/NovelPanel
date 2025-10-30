@@ -3,14 +3,17 @@
 
 提供统一的数据库 CRUD 操作接口。
 """
-from .base import init_db, get_session, get_db, DatabaseSession
+from .base import init_db, drop_all_tables, get_session, get_db, DatabaseSession
 from .session_service import SessionService
 from .memory_service import MemoryService
-from .character_service import CharacterService
+from .actor_service import ActorService
+from .draw_service import JobService, BatchJobService
+from .novel_service import NovelContentService
 
 __all__ = [
     # 数据库基础
     "init_db",
+    "drop_all_tables",
     "get_session",
     "get_db",
     "DatabaseSession",
@@ -18,5 +21,8 @@ __all__ = [
     "SessionService",
     "MemoryService", 
     "CharacterService",
+    "JobService",
+    "BatchJobService",
+    "NovelContentService",
 ]
 

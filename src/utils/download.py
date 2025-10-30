@@ -76,6 +76,6 @@ async def download_file(
             logger.debug(f"下载文件成功: {save_path.name}")
             return True
     except (httpx.HTTPError, IOError, OSError) as e:
-        logger.error(f"下载文件异常 {url}: {e}")
+        logger.exception(f"下载文件异常 {url}: {e}")
         return False
 

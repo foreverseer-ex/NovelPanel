@@ -4,8 +4,11 @@
 简化设计：直接代理 SD-Forge API，所有接口添加 session_id 参数。
 """
 from typing import Optional, Dict, Any, List
-from fastapi import APIRouter, Query
+from fastapi import APIRouter, HTTPException
 from fastapi.responses import FileResponse
+
+from services.db import JobService, BatchJobService
+from schemas.draw import Job, BatchJob
 
 
 router = APIRouter(
@@ -151,7 +154,7 @@ async def generate(
 async def get_image(
     session_id: str,
     batch_id: str,
-    index: int = Query(0, ge=0, description="图像索引（batch 中的第几张）")
+    index: int = 0
 ) -> FileResponse:
     """
     获取生成的图像文件。
@@ -171,3 +174,226 @@ async def get_image(
     """
     # TODO: 实现获取图像逻辑
     raise NotImplementedError("获取图像功能尚未实现")
+
+
+# ==================== Job 管理 ====================
+
+@router.post("/jobs", summary="创建绘图任务", response_model=Job)
+async def create_job(job_id: str) -> Job:
+    """
+    创建单个绘图任务。
+    
+    Args:
+        job_id: 任务ID
+    
+    Returns:
+        创建后的任务对象
+    """
+    from datetime import datetime
+    job = Job(
+        job_id=job_id,
+        created_at=datetime.now()
+    )
+    return JobService.create(job)
+
+
+@router.get("/jobs/{job_id}", summary="获取绘图任务", response_model=Job)
+async def get_job(job_id: str) -> Job:
+    """
+    获取单个绘图任务。
+    
+    Args:
+        job_id: 任务ID
+    
+    Returns:
+        任务对象
+    
+    Raises:
+        HTTPException: 任务不存在时返回 404
+    """
+    job = JobService.get(job_id)
+    if not job:
+        raise HTTPException(status_code=404, detail=f"任务不存在: {job_id}")
+    return job
+
+
+@router.get("/jobs", summary="获取绘图任务列表", response_model=List[Job])
+async def list_jobs(
+    limit: Optional[int] = None,
+    offset: int = 0
+) -> List[Job]:
+    """
+    获取绘图任务列表。
+    
+    Args:
+        limit: 返回数量限制（None 表示无限制）
+        offset: 跳过的记录数
+    
+    Returns:
+        任务列表
+    """
+    return JobService.list(limit=limit, offset=offset)
+
+
+@router.delete("/jobs/{job_id}", summary="删除绘图任务")
+async def delete_job(job_id: str) -> Dict[str, Any]:
+    """
+    删除单个绘图任务。
+    
+    Args:
+        job_id: 任务ID
+    
+    Returns:
+        删除结果
+    
+    Raises:
+        HTTPException: 任务不存在时返回 404
+    """
+    success = JobService.delete(job_id)
+    if not success:
+        raise HTTPException(status_code=404, detail=f"任务不存在: {job_id}")
+    return {"message": "任务删除成功", "job_id": job_id}
+
+
+# ==================== BatchJob 管理 ====================
+
+@router.post("/batch-jobs", summary="创建批次任务", response_model=BatchJob)
+async def create_batch_job(batch_id: str, job_ids: Optional[List[str]] = None) -> BatchJob:
+    """
+    创建批次任务。
+    
+    Args:
+        batch_id: 批次ID
+        job_ids: 任务ID列表（可选）
+    
+    Returns:
+        创建后的批次任务对象
+    """
+    from datetime import datetime
+    batch_job = BatchJob(
+        batch_id=batch_id,
+        job_ids=job_ids or [],
+        created_at=datetime.now()
+    )
+    return BatchJobService.create(batch_job)
+
+
+@router.get("/batch-jobs/{batch_id}", summary="获取批次任务", response_model=BatchJob)
+async def get_batch_job(batch_id: str) -> BatchJob:
+    """
+    获取批次任务。
+    
+    Args:
+        batch_id: 批次ID
+    
+    Returns:
+        批次任务对象
+    
+    Raises:
+        HTTPException: 批次任务不存在时返回 404
+    """
+    batch_job = BatchJobService.get(batch_id)
+    if not batch_job:
+        raise HTTPException(status_code=404, detail=f"批次任务不存在: {batch_id}")
+    return batch_job
+
+
+@router.get("/batch-jobs", summary="获取批次任务列表", response_model=List[BatchJob])
+async def list_batch_jobs(
+    limit: Optional[int] = None,
+    offset: int = 0
+) -> List[BatchJob]:
+    """
+    获取批次任务列表。
+    
+    Args:
+        limit: 返回数量限制（None 表示无限制）
+        offset: 跳过的记录数
+    
+    Returns:
+        批次任务列表
+    """
+    return BatchJobService.list(limit=limit, offset=offset)
+
+
+@router.put("/batch-jobs/{batch_id}", summary="更新批次任务", response_model=BatchJob)
+async def update_batch_job(batch_id: str, **kwargs) -> BatchJob:
+    """
+    更新批次任务。
+    
+    Args:
+        batch_id: 批次ID
+        **kwargs: 要更新的字段
+    
+    Returns:
+        更新后的批次任务对象
+    
+    Raises:
+        HTTPException: 批次任务不存在时返回 404
+    """
+    batch_job = BatchJobService.update(batch_id, **kwargs)
+    if not batch_job:
+        raise HTTPException(status_code=404, detail=f"批次任务不存在: {batch_id}")
+    return batch_job
+
+
+@router.post("/batch-jobs/{batch_id}/jobs/{job_id}", summary="添加任务到批次")
+async def add_job_to_batch(batch_id: str, job_id: str) -> BatchJob:
+    """
+    向批次任务添加任务。
+    
+    Args:
+        batch_id: 批次ID
+        job_id: 任务ID
+    
+    Returns:
+        更新后的批次任务对象
+    
+    Raises:
+        HTTPException: 批次任务不存在时返回 404
+    """
+    batch_job = BatchJobService.add_job(batch_id, job_id)
+    if not batch_job:
+        raise HTTPException(status_code=404, detail=f"批次任务不存在: {batch_id}")
+    return batch_job
+
+
+@router.delete("/batch-jobs/{batch_id}/jobs/{job_id}", summary="从批次移除任务")
+async def remove_job_from_batch(batch_id: str, job_id: str) -> BatchJob:
+    """
+    从批次任务移除任务。
+    
+    Args:
+        batch_id: 批次ID
+        job_id: 任务ID
+    
+    Returns:
+        更新后的批次任务对象
+    
+    Raises:
+        HTTPException: 批次任务不存在时返回 404
+    """
+    batch_job = BatchJobService.remove_job(batch_id, job_id)
+    if not batch_job:
+        raise HTTPException(status_code=404, detail=f"批次任务不存在: {batch_id}")
+    return batch_job
+
+
+@router.delete("/batch-jobs/{batch_id}", summary="删除批次任务")
+async def delete_batch_job(batch_id: str) -> Dict[str, Any]:
+    """
+    删除批次任务。
+    
+    Args:
+        batch_id: 批次ID
+    
+    Returns:
+        删除结果
+    
+    Raises:
+        HTTPException: 批次任务不存在时返回 404
+    """
+    success = BatchJobService.delete(batch_id)
+    if not success:
+        raise HTTPException(status_code=404, detail=f"批次任务不存在: {batch_id}")
+    return {"message": "批次任务删除成功", "batch_id": batch_id}

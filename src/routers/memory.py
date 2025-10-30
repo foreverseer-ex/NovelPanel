@@ -16,7 +16,7 @@
 import uuid
 from datetime import datetime
 from typing import List, Optional, Dict
-from fastapi import APIRouter, Query, HTTPException
+from fastapi import APIRouter, HTTPException
 from loguru import logger
 
 from schemas.memory import MemoryEntry
@@ -103,37 +103,29 @@ async def get_memory(
     return entry
 
 
-@router.get("/query", response_model=List[MemoryEntry], summary="查询记忆")
-async def query_memories(
+@router.get("/list", response_model=List[MemoryEntry], summary="列出记忆")
+async def list_memories(
     session_id: str,
-    keys: Optional[List[str]] = Query(None, description="键名过滤"),
-    limit: int = Query(100, ge=1, le=1000, description="返回数量")
+    key: Optional[str] = None,
+    limit: int = 100
 ) -> List[MemoryEntry]:
     """
-    查询记忆条目。
+    列出会话的记忆条目。
     
     Args:
         session_id: 会话ID
-        keys: 键名过滤（可选）
+        key: 按键名过滤（可选，精确匹配）
         limit: 返回数量限制（默认100，最大1000）
     
     Returns:
         符合条件的记忆列表
-    
-    实现要点：
-    - 支持按键名查询
-    - 按时间排序
-    - 支持分页
     """
-    # 获取所有记忆条目
-    entries = MemoryService.list_entries(limit=limit)
-    
-    # 过滤：只返回属于该会话的记忆
-    entries = [e for e in entries if e.session_id == session_id]
+    # 获取会话的所有记忆条目
+    entries = MemoryService.list_entries_by_session(session_id, limit=limit)
     
     # 如果提供了键名过滤，应用过滤
-    if keys:
-        entries = [e for e in entries if e.key in keys]
+    if key:
+        entries = [e for e in entries if e.key == key]
     
     return entries
 
@@ -142,7 +134,9 @@ async def query_memories(
 async def update_memory(
     session_id: str,
     memory_id: str,
-    update_data: dict
+    key: Optional[str] = None,
+    value: Optional[str] = None,
+    description: Optional[str] = None
 ) -> MemoryEntry:
     """
     更新记忆条目。
@@ -150,7 +144,9 @@ async def update_memory(
     Args:
         session_id: 会话ID
         memory_id: 记忆ID
-        update_data: 更新内容
+        key: 新的键名（可选）
+        value: 新的值（可选）
+        description: 新的描述（可选）
     
     Returns:
         更新后的记忆条目
@@ -160,14 +156,21 @@ async def update_memory(
     if not entry or entry.session_id != session_id:
         raise HTTPException(status_code=404, detail=f"记忆条目不存在: {memory_id}")
     
-    # 自动更新时间戳
-    update_data["updated_at"] = datetime.now()
+    # 构建更新字典
+    update_data = {"updated_at": datetime.now()}
+    if key is not None:
+        update_data["key"] = key
+    if value is not None:
+        update_data["value"] = value
+    if description is not None:
+        update_data["description"] = description
     
     # 更新记忆
     updated_entry = MemoryService.update_entry(memory_id, **update_data)
     if not updated_entry:
         raise HTTPException(status_code=404, detail=f"记忆条目不存在: {memory_id}")
     
+    logger.info(f"更新记忆条目: {memory_id} (session: {session_id})")
     return updated_entry
 
 
@@ -202,28 +205,29 @@ async def delete_memory(
 
 # ==================== 预定义键查询 ====================
 
-@router.get("/key-description", summary="获取预定义键的描述")
+@router.get("/key-description", summary="获取键的描述（建议）")
 async def get_key_description(
-    key: str = Query(..., description="记忆键名")
+    key: str
 ) -> Dict[str, str]:
     """
-    获取预定义键的描述。
+    获取键的描述（如果在预定义列表中）。
     
     Args:
         key: 记忆键名
     
     Returns:
         包含键和描述的字典 {"key": "...", "description": "..."}
-    
-    Raises:
-        404: 键名不在预定义列表中
+        如果键不在预定义列表中，返回提示信息
     
     实现要点：
     - 从 constants.memory.memory_description 查找
-    - 如果键不存在，返回 404
+    - 如果键不存在，返回提示而非报错（允许自定义 key）
     """
     if key not in memory_description:
-        raise HTTPException(status_code=404, detail=f"键名 '{key}' 不在预定义列表中")
+        return {
+            "key": key,
+            "description": f"'{key}' 不在预定义列表中，但可以作为自定义键使用。建议确保键名具体明确。"
+        }
     
     return {
         "key": key,

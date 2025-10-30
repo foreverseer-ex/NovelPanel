@@ -275,3 +275,6 @@ class CivitaiDrawService(AbstractDrawService):
         img.save(save_path)
         logger.info(f"图片已保存: {save_path}")
 
+
+# 全局单例
+civitai_draw_service = CivitaiDrawService()

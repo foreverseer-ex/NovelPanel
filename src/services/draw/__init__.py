@@ -6,7 +6,7 @@
 from .base import AbstractDrawService
 from .sd_forge import SdForgeDrawService, sd_forge_draw_service
 from .civitai import CivitaiDrawService, civitai_draw_service
-
+from settings import app_settings
 # 简单的后端注册与获取器
 DRAW_SERVICES: dict[str, AbstractDrawService] = {
     "sd_forge": sd_forge_draw_service,
@@ -35,7 +35,7 @@ def get_current_draw_service() -> AbstractDrawService:
     
     :return: 当前配置的绘图服务实例
     """
-    from settings import app_settings
+
     backend = app_settings.draw.backend
     return get_draw_service(backend)
 
